@@ -1,0 +1,24 @@
+{
+  "app_name": "Burhan",
+  "common": {
+    "loading": "Loading...",
+    "retry": "Retry",
+    "error_occurred": "An unexpected error occurred",
+    "no_internet": "No internet connection",
+    "timeout": "Connection timeout",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
+  },
+  "auth": {
+    "login": "Login",
+    "phone_number": "Phone Number",
+    "enter_phone": "Enter phone number",
+    "send_code": "Send Verification Code",
+    "verify_code": "Verify Code",
+    "enter_otp": "Enter the 6-digit verification code",
+    "invalid_phone": "Invalid phone number",
+    "invalid_otp": "Invalid verification code",
+    "logout": "Logout"
+  }
+}
