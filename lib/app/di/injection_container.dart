@@ -29,6 +29,11 @@ import 'package:store/features/geography/data/datasources/geography_remote_data_
 import 'package:store/features/geography/data/repositories/geography_repository_impl.dart';
 import 'package:store/features/geography/domain/repositories/geography_repository.dart';
 import 'package:store/features/geography/domain/usecases/get_countries_usecase.dart';
+import 'package:store/features/home/data/datasources/home_remote_data_source.dart';
+import 'package:store/features/home/data/repositories/home_repository_impl.dart';
+import 'package:store/features/home/domain/repositories/home_repository.dart';
+import 'package:store/features/home/domain/usecases/get_home_feed_usecase.dart';
+import 'package:store/features/home/presentation/cubits/home_cubit.dart';
 
 final GetIt sl = GetIt.instance;
 
@@ -121,11 +126,28 @@ Future<void> initDependencies({
     () => GetCountriesUseCase(sl<GeographyRepository>()),
   );
 
+  // 7. Home / Catalog feed
+  sl.registerLazySingleton<HomeRemoteDataSource>(
+    () => HomeRemoteDataSourceImpl(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<HomeRepository>(
+    () => HomeRepositoryImpl(
+      remoteDataSource: sl<HomeRemoteDataSource>(),
+      networkInfo: sl<NetworkInfo>(),
+    ),
+  );
+  sl.registerLazySingleton<GetHomeFeedUseCase>(
+    () => GetHomeFeedUseCase(sl<HomeRepository>()),
+  );
+  sl.registerFactory<HomeCubit>(
+    () => HomeCubit(getHomeFeedUseCase: sl<GetHomeFeedUseCase>()),
+  );
+
   sl.registerLazySingleton<ThemeCubit>(
     () => ThemeCubit(sl<LocalStorageService>()),
   );
 
-  // 7. Router
+  // 8. Router
   sl.registerLazySingleton<AppRouter>(
     () => AppRouter(authCubit: sl<AuthCubit>()),
   );

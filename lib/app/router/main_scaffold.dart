@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:store/app/di/injection_container.dart';
 import 'package:store/core/theme/burhan_colors.dart';
 import 'package:store/core/widgets/bottom_nav.dart';
 import 'package:store/core/widgets/top_header.dart';
 import 'package:store/features/cart/presentation/pages/cart_page.dart';
+import 'package:store/features/home/presentation/cubits/home_cubit.dart';
 import 'package:store/features/home/presentation/pages/home_page.dart';
 import 'package:store/features/orders/presentation/pages/orders_page.dart';
 import 'package:store/features/products/presentation/pages/products_page.dart';
@@ -56,12 +59,15 @@ class _MainScaffoldState extends State<MainScaffold> {
       ),
       body: IndexedStack(
         index: _currentTab.index,
-        children: const [
-          HomePage(),
-          ProductsPage(),
-          CartPage(),
-          OrdersPage(),
-          ProfilePage(),
+        children: [
+          BlocProvider(
+            create: (_) => sl<HomeCubit>()..load(),
+            child: const HomePage(),
+          ),
+          const ProductsPage(),
+          const CartPage(),
+          const OrdersPage(),
+          const ProfilePage(),
         ],
       ),
       bottomNavigationBar: BottomNav(
