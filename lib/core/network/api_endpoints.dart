@@ -13,6 +13,17 @@ class ApiEndpoints {
   // Home & Catalog
   static const String home = '/home';
   static const String catalogChannels = '/catalog/channels';
+  static String channelProducts(String slug) => '/catalog/channels/$slug/products';
+  static String productDetail(String productId) =>
+      '/catalog/products/${Uri.encodeComponent(productId)}';
+
+  // Commerce
+  static const String favorites = '/favorites';
+  static String favoriteById(String productId) =>
+      '/favorites/${Uri.encodeComponent(productId)}';
+  static const String cart = '/cart';
+  static const String cartItems = '/cart/items';
+  static String cartItem(int id) => '/cart/items/$id';
 
   // Geography
   static const String countries = '/countries';
@@ -23,17 +34,10 @@ class ApiEndpoints {
   // Platform content
   static const String contentPages = '/content-pages';
 
-  // Products (Placeholders)
+  // Legacy placeholders
   static const String products = '/products';
   static const String categories = '/categories';
-
-  // Cart & Checkout (Placeholders)
-  static const String cart = '/cart';
   static const String checkout = '/checkout';
-
-  // Orders (Placeholders)
   static const String orders = '/orders';
-
-  // Notifications (Placeholders)
   static const String notifications = '/notifications';
 }

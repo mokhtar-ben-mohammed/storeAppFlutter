@@ -147,33 +147,34 @@ class ProductCard extends StatelessWidget {
                     ),
                   ),
 
-                  // Bottom-start: Rating Badge
-                  Positioned(
-                    bottom: 6,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.65),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.star_rounded, size: 10, color: BurhanColors.amber),
-                          const SizedBox(width: 2),
-                          Text(
-                            product.rating.toString(),
-                            style: BurhanTypography.caption.copyWith(
-                              color: Colors.white,
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w700,
+                  // Bottom-start: Rating Badge (hide when missing)
+                  if (product.rating > 0)
+                    Positioned(
+                      bottom: 6,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star_rounded, size: 10, color: BurhanColors.amber),
+                            const SizedBox(width: 2),
+                            Text(
+                              product.rating.toString(),
+                              style: BurhanTypography.caption.copyWith(
+                                color: Colors.white,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

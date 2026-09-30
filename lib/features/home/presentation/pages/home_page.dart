@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:store/app/di/injection_container.dart';
+import 'package:store/app/router/app_routes.dart';
 import 'package:store/core/theme/burhan_colors.dart';
 import 'package:store/core/theme/burhan_typography.dart';
 import 'package:store/core/widgets/home_carousel_slider.dart';
 import 'package:store/core/widgets/marketplace_icons_slider.dart';
 import 'package:store/core/widgets/product_card.dart';
+import 'package:store/features/authentication/presentation/cubits/auth_cubit.dart';
+import 'package:store/features/authentication/presentation/cubits/auth_state.dart';
 import 'package:store/features/home/domain/entities/catalog_channel_entity.dart';
 import 'package:store/features/home/presentation/cubits/home_cubit.dart';
 import 'package:store/features/home/presentation/cubits/home_state.dart';
 import 'package:store/features/products/domain/entities/product_entity.dart';
+import 'package:store/features/products/domain/repositories/catalog_repository.dart';
 import 'package:store/features/products/presentation/pages/product_details_page.dart';
 import 'package:store/features/products/presentation/pages/store_products_page.dart';
 
@@ -82,50 +88,81 @@ class _HomePageState extends State<HomePage> {
     }).toList();
   }
 
-  void _toggleFavorite(String productId) {
-    setState(() {
-      if (_favoriteIds.contains(productId)) {
-        _favoriteIds.remove(productId);
-      } else {
-        _favoriteIds.add(productId);
-      }
-    });
-
+  bool _requireAuth() {
+    final auth = context.read<AuthCubit>().state;
+    if (auth is Authenticated) return true;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          _favoriteIds.contains(productId)
-              ? 'تمت إضافة المنتج إلى المفضلة'
-              : 'تمت إزالة المنتج من المفضلة',
+          'يلزم تسجيل الدخول للمتابعة',
           style: BurhanTypography.bodySmall.copyWith(color: Colors.white),
         ),
-        duration: const Duration(seconds: 1),
+        action: SnackBarAction(
+          label: 'دخول',
+          textColor: BurhanColors.amber,
+          onPressed: () => context.go('${AppRoutes.login}?mode=login'),
+        ),
         backgroundColor: BurhanColors.slate900,
         behavior: SnackBarBehavior.floating,
       ),
     );
+    return false;
   }
 
-  void _addToCart(ProductEntity product) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded, color: BurhanColors.amber, size: 16),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'تمت إضافة "${product.title}" إلى السلة',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: BurhanTypography.bodySmall.copyWith(color: Colors.white),
-              ),
-            ),
-          ],
+  Future<void> _toggleFavorite(ProductEntity product) async {
+    if (!_requireAuth()) return;
+    final isFav = _favoriteIds.contains(product.id);
+    final repo = sl<CatalogRepository>();
+    final result = isFav
+        ? await repo.removeFavorite(product.id)
+        : await repo.addFavorite(
+            productId: product.id,
+            title: product.title,
+            channelSlug: product.store,
+            imageUrl: product.images.isNotEmpty ? product.images.first : null,
+            priceCny: product.originalPriceCny,
+          );
+    if (!mounted) return;
+    if (result.isSuccess) {
+      setState(() {
+        if (isFav) {
+          _favoriteIds.remove(product.id);
+        } else {
+          _favoriteIds.add(product.id);
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isFav ? 'تمت إزالة المنتج من المفضلة' : 'تمت إضافة المنتج إلى المفضلة',
+            style: BurhanTypography.bodySmall.copyWith(color: Colors.white),
+          ),
+          duration: const Duration(seconds: 1),
+          backgroundColor: BurhanColors.slate900,
+          behavior: SnackBarBehavior.floating,
         ),
-        duration: const Duration(seconds: 2),
-        backgroundColor: BurhanColors.slate900,
-        behavior: SnackBarBehavior.floating,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.failureOrNull?.message ?? 'تعذّر تحديث المفضلة',
+            style: BurhanTypography.bodySmall.copyWith(color: Colors.white),
+          ),
+          backgroundColor: BurhanColors.slate900,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _openProductDetails(ProductEntity product) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ProductDetailsPage(
+          product: product,
+          productId: product.id,
+        ),
       ),
     );
   }
@@ -204,13 +241,31 @@ class _HomePageState extends State<HomePage> {
                             stores: _mapChannels(channels),
                             selectedStoreId: _selectedStore,
                             onStoreSelected: (storeId) {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => StoreProductsPage(storeId: storeId),
-                                ),
-                              );
+                              setState(() {
+                                _selectedStore =
+                                    _selectedStore == storeId ? null : storeId;
+                              });
                             },
                           ),
+                          if (_selectedStore != null) ...[
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: AlignmentDirectional.centerEnd,
+                              child: TextButton.icon(
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => StoreProductsPage(
+                                        storeId: _selectedStore!,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.storefront_rounded, size: 16),
+                                label: const Text('عرض كل منتجات المتجر'),
+                              ),
+                            ),
+                          ],
                         const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -280,15 +335,9 @@ class _HomePageState extends State<HomePage> {
                               return ProductCard(
                                 product: product,
                                 isFavorite: _favoriteIds.contains(product.id),
-                                onToggleFavorite: () => _toggleFavorite(product.id),
-                                onAddToCart: () => _addToCart(product),
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) => ProductDetailsPage(product: product),
-                                    ),
-                                  );
-                                },
+                                onToggleFavorite: () => _toggleFavorite(product),
+                                onAddToCart: () => _openProductDetails(product),
+                                onTap: () => _openProductDetails(product),
                               );
                             },
                           ),

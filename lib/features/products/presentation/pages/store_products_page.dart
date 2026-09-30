@@ -1,14 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:store/app/di/injection_container.dart';
 import 'package:store/core/theme/burhan_colors.dart';
 import 'package:store/core/theme/burhan_typography.dart';
 import 'package:store/core/widgets/product_card.dart';
 import 'package:store/core/widgets/store_badge.dart';
 import 'package:store/features/products/domain/entities/product_entity.dart';
-import 'package:store/features/products/presentation/data/mock_products_data.dart';
+import 'package:store/features/products/domain/repositories/catalog_repository.dart';
+import 'package:store/features/products/presentation/cubits/channel_products_cubit.dart';
 import 'package:store/features/products/presentation/pages/product_details_page.dart';
 
-/// Store-specific metadata item matching StoreProductsScreen.tsx.
 class _StoreMeta {
   const _StoreMeta({
     required this.title,
@@ -27,8 +31,8 @@ class _StoreMeta {
   final String badge;
 }
 
-/// Screen displaying products filtered by the selected Chinese marketplace.
-class StoreProductsPage extends StatefulWidget {
+/// Channel product listing with API pagination.
+class StoreProductsPage extends StatelessWidget {
   const StoreProductsPage({
     super.key,
     this.storeId = '1688',
@@ -37,10 +41,27 @@ class StoreProductsPage extends StatefulWidget {
   final String storeId;
 
   @override
-  State<StoreProductsPage> createState() => _StoreProductsPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => ChannelProductsCubit(
+        catalogRepository: sl<CatalogRepository>(),
+        channelSlug: storeId,
+      )..load(),
+      child: _StoreProductsView(storeId: storeId),
+    );
+  }
 }
 
-class _StoreProductsPageState extends State<StoreProductsPage> {
+class _StoreProductsView extends StatefulWidget {
+  const _StoreProductsView({required this.storeId});
+
+  final String storeId;
+
+  @override
+  State<_StoreProductsView> createState() => _StoreProductsViewState();
+}
+
+class _StoreProductsViewState extends State<_StoreProductsView> {
   static const Map<String, _StoreMeta> _storeMetadata = {
     '1688': _StoreMeta(
       title: 'متجر 1688 (علي بابا الصين)',
@@ -58,116 +79,102 @@ class _StoreProductsPageState extends State<StoreProductsPage> {
       desc: 'أضخم منصة تسوق صينية لأحدث صيحات الأزياء، الديكورات، والإلكترونيات الحصرية.',
       badge: 'ملايين المنتجات المتجددة',
     ),
-    'goofish': _StoreMeta(
-      title: 'متجر جوفيش (Goofish / Xianyu)',
-      chineseName: '闲鱼二手',
-      startColor: BurhanColors.storeGoofishStart,
-      endColor: BurhanColors.storeGoofishEnd,
-      desc: 'سوق المقتنيات النادرة والأجهزة المستعملة بحالات ممتازة مع فحص سلامة القطع.',
-      badge: 'مفحوص ومضمون من برهان',
-    ),
-    'aliexpress': _StoreMeta(
-      title: 'متجر علي إكسبريس (AliExpress)',
-      chineseName: '全球速卖通',
-      startColor: BurhanColors.storeAliexpressStart,
-      endColor: BurhanColors.storeAliexpressEnd,
-      desc: 'تجزئة دولية سريعة مع عروض موسمية وتنوع ضخم في الإكسسوارات والأجهزة الذكية.',
-      badge: 'شحن موحد وسريع',
-    ),
   };
 
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final Set<String> _favoriteIds = {};
-  String _searchQuery = '';
-  String? _selectedCategory;
+  Timer? _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   _StoreMeta get _meta {
     final key = widget.storeId.toLowerCase();
-    return _storeMetadata[key] ?? _storeMetadata['1688']!;
+    return _storeMetadata[key] ??
+        _StoreMeta(
+          title: 'متجر $key',
+          chineseName: key,
+          startColor: BurhanColors.primary,
+          endColor: BurhanColors.primaryLight,
+          desc: 'منتجات مباشرة من القناة المختارة عبر وسيط الكتالوج.',
+          badge: 'كتالوج مباشر',
+        );
   }
 
-  List<ProductEntity> get _filteredProducts {
-    var list = MockProductsData.products.where((p) {
-      if (widget.storeId.isNotEmpty && widget.storeId.toLowerCase() != 'all') {
-        return p.store.toLowerCase() == widget.storeId.toLowerCase();
-      }
-      return true;
-    }).toList();
-
-    if (_searchQuery.isNotEmpty) {
-      list = list.where((p) {
-        final q = _searchQuery.toLowerCase();
-        return p.title.toLowerCase().contains(q) ||
-            p.description.toLowerCase().contains(q) ||
-            p.supplierName.toLowerCase().contains(q);
-      }).toList();
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 240) {
+      context.read<ChannelProductsCubit>().loadMore();
     }
-
-    if (_selectedCategory != null) {
-      list = list.where((p) => p.category == _selectedCategory).toList();
-    }
-
-    return list;
   }
 
-  void _toggleFavorite(String productId) {
-    setState(() {
-      if (_favoriteIds.contains(productId)) {
-        _favoriteIds.remove(productId);
-      } else {
-        _favoriteIds.add(productId);
-      }
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 450), () {
+      context.read<ChannelProductsCubit>().search(value);
     });
+  }
 
+  void _toast(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          _favoriteIds.contains(productId)
-              ? 'تمت إضافة المنتج إلى المفضلة'
-              : 'تمت إزالة المنتج من المفضلة',
+          message,
           style: BurhanTypography.bodySmall.copyWith(color: Colors.white),
         ),
-        duration: const Duration(seconds: 1),
         backgroundColor: BurhanColors.slate900,
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
-  void _addToCart(ProductEntity product) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded, color: BurhanColors.amber, size: 16),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'تمت إضافة "${product.title}" إلى السلة',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: BurhanTypography.bodySmall.copyWith(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-        duration: const Duration(seconds: 2),
-        backgroundColor: BurhanColors.slate900,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Future<void> _toggleFavorite(ProductEntity product) async {
+    final isFav = _favoriteIds.contains(product.id);
+    final repo = sl<CatalogRepository>();
+    final result = isFav
+        ? await repo.removeFavorite(product.id)
+        : await repo.addFavorite(
+            productId: product.id,
+            title: product.title,
+            channelSlug: product.store,
+            imageUrl: product.images.isNotEmpty ? product.images.first : null,
+            priceCny: product.originalPriceCny,
+          );
+    if (!mounted) return;
+    if (result.isSuccess) {
+      setState(() {
+        if (isFav) {
+          _favoriteIds.remove(product.id);
+        } else {
+          _favoriteIds.add(product.id);
+        }
+      });
+      _toast(isFav ? 'تمت إزالة المنتج من المفضلة' : 'تمت إضافة المنتج إلى المفضلة');
+    } else {
+      _toast(result.failureOrNull?.message ?? 'يلزم تسجيل الدخول للمفضلة');
+    }
   }
 
-  void _openProductDetails(ProductEntity product) {
+  void _openDetails(ProductEntity product) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => ProductDetailsPage(product: product),
+        builder: (_) => ProductDetailsPage(
+          product: product,
+          productId: product.id,
+        ),
       ),
     );
   }
@@ -175,14 +182,12 @@ class _StoreProductsPageState extends State<StoreProductsPage> {
   @override
   Widget build(BuildContext context) {
     final meta = _meta;
-    final products = _filteredProducts;
 
     return Scaffold(
       backgroundColor: BurhanColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        scrolledUnderElevation: 1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
           color: BurhanColors.slate900,
@@ -212,226 +217,201 @@ class _StoreProductsPageState extends State<StoreProductsPage> {
           ],
         ),
       ),
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // Store Hero Banner
-          SliverToBoxAdapter(
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [meta.startColor, meta.endColor],
-                ),
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: meta.startColor.withValues(alpha: 0.25),
-                    blurRadius: 14,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.22),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          meta.badge,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        meta.chineseName,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    meta.desc,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.95),
-                      fontSize: 12.5,
-                      height: 1.5,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      const Icon(Icons.verified_user_rounded, color: Colors.white, size: 15),
-                      const SizedBox(width: 5),
-                      Text(
-                        'فحص عيني 100% في قوانغتشو وشحن مباشر لليمن',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+      body: BlocBuilder<ChannelProductsCubit, ChannelProductsState>(
+        builder: (context, state) {
+          final products = state is ChannelProductsLoaded
+              ? state.products
+              : const <ProductEntity>[];
+          final loadingMore =
+              state is ChannelProductsLoaded && state.isLoadingMore;
 
-          // Search and Filter Bar
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: BurhanColors.slate200),
+          return CustomScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Container(
+                  margin: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [meta.startColor, meta.endColor],
+                    ),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.22),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              meta.badge,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            meta.chineseName,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (val) => setState(() => _searchQuery = val.trim()),
-                        style: BurhanTypography.bodyMedium.copyWith(fontSize: 13),
-                        decoration: InputDecoration(
-                          hintText: 'ابحث في منتجات ${meta.title}...',
-                          hintStyle: BurhanTypography.bodySmall.copyWith(
-                            color: BurhanColors.slate400,
-                            fontSize: 12,
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.search_rounded,
-                            size: 18,
-                            color: BurhanColors.slate400,
-                          ),
-                          suffixIcon: _searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear_rounded, size: 16),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() => _searchQuery = '');
-                                  },
-                                )
-                              : null,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                          border: InputBorder.none,
+                      const SizedBox(height: 10),
+                      Text(
+                        meta.desc,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.95),
+                          fontSize: 12.5,
+                          height: 1.5,
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    width: 44,
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Container(
                     height: 44,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: BurhanColors.slate200),
                     ),
-                    child: IconButton(
-                      icon: const Icon(Icons.tune_rounded, size: 18, color: BurhanColors.primary),
-                      onPressed: () {
-                        // Open filter bottom sheet
-                      },
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: _onSearchChanged,
+                      style: BurhanTypography.bodyMedium.copyWith(fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'ابحث في منتجات ${meta.title}...',
+                        hintStyle: BurhanTypography.bodySmall.copyWith(
+                          color: BurhanColors.slate400,
+                          fontSize: 12,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          size: 18,
+                          color: BurhanColors.slate400,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-
-          // Header count
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'المنتجات المتوفرة',
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
+                  child: Text(
+                    state is ChannelProductsLoaded
+                        ? 'المنتجات المتوفرة · ${products.length}'
+                        : 'المنتجات المتوفرة',
                     style: BurhanTypography.titleSmall.copyWith(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  Text(
-                    '${products.length} منتجات',
-                    style: BurhanTypography.caption.copyWith(
-                      color: BurhanColors.slate500,
-                      fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (state is ChannelProductsLoading)
+                const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (state is ChannelProductsFailure)
+                SliverFillRemaining(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            state.message,
+                            textAlign: TextAlign.center,
+                            style: BurhanTypography.bodyMedium.copyWith(
+                              color: BurhanColors.rose500,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextButton(
+                            onPressed: () =>
+                                context.read<ChannelProductsCubit>().load(),
+                            child: const Text('إعادة المحاولة'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-
-          // Product Grid
-          if (products.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.inventory_2_outlined, size: 48, color: BurhanColors.slate300),
-                    const SizedBox(height: 10),
-                    Text(
-                      'لم يتم العثور على منتجات مطابقة للبحث',
-                      style: BurhanTypography.bodyMedium.copyWith(color: BurhanColors.slate500),
+                )
+              else if (products.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Text(
+                      'لا توجد منتجات للعرض',
+                      style: BurhanTypography.bodyMedium.copyWith(
+                        color: BurhanColors.slate500,
+                      ),
                     ),
-                  ],
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
+                  sliver: SliverGrid(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.58,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        if (index >= products.length) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(12),
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        }
+                        final product = products[index];
+                        return ProductCard(
+                          product: product,
+                          isFavorite: _favoriteIds.contains(product.id),
+                          onToggleFavorite: () => _toggleFavorite(product),
+                          onAddToCart: () => _openDetails(product),
+                          onTap: () => _openDetails(product),
+                        );
+                      },
+                      childCount: products.length + (loadingMore ? 1 : 0),
+                    ),
+                  ),
                 ),
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.58,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final product = products[index];
-                    return ProductCard(
-                      product: product,
-                      isFavorite: _favoriteIds.contains(product.id),
-                      onToggleFavorite: () => _toggleFavorite(product.id),
-                      onAddToCart: () => _addToCart(product),
-                      onTap: () => _openProductDetails(product),
-                    );
-                  },
-                  childCount: products.length,
-                ),
-              ),
-            ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

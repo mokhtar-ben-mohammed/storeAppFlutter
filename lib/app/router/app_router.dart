@@ -15,7 +15,6 @@ import 'package:store/features/favorites/presentation/pages/favorites_page.dart'
 import 'package:store/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:store/features/orders/presentation/pages/orders_page.dart';
 import 'package:store/features/products/domain/entities/product_entity.dart';
-import 'package:store/features/products/presentation/data/mock_products_data.dart';
 import 'package:store/features/products/presentation/pages/product_details_page.dart';
 import 'package:store/features/products/presentation/pages/products_page.dart';
 import 'package:store/features/products/presentation/pages/store_products_page.dart';
@@ -137,9 +136,13 @@ class AppRouter {
         path: AppRoutes.productDetails,
         name: AppRoutes.productDetailsName,
         builder: (context, state) {
-          final product = state.extra as ProductEntity? ??
-              MockProductsData.getById(state.uri.queryParameters['id'] ?? 'prod-1')!;
-          return ProductDetailsPage(product: product);
+          final product = state.extra as ProductEntity?;
+          final productId =
+              state.uri.queryParameters['id'] ?? product?.id;
+          return ProductDetailsPage(
+            product: product,
+            productId: productId,
+          );
         },
       ),
       GoRoute(

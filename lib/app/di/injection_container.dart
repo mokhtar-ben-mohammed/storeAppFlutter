@@ -44,6 +44,10 @@ import 'package:store/features/platform/data/datasources/content_page_remote_dat
 import 'package:store/features/platform/data/repositories/content_page_repository_impl.dart';
 import 'package:store/features/platform/domain/repositories/content_page_repository.dart';
 import 'package:store/features/platform/domain/usecases/get_content_pages_usecase.dart';
+import 'package:store/features/products/data/datasources/catalog_remote_data_source.dart';
+import 'package:store/features/products/data/datasources/commerce_remote_data_source.dart';
+import 'package:store/features/products/data/repositories/catalog_repository_impl.dart';
+import 'package:store/features/products/domain/repositories/catalog_repository.dart';
 
 final GetIt sl = GetIt.instance;
 
@@ -194,6 +198,21 @@ Future<void> initDependencies({
   );
   sl.registerFactory<HomeCubit>(
     () => HomeCubit(getHomeFeedUseCase: sl<GetHomeFeedUseCase>()),
+  );
+
+  // Catalog / Commerce
+  sl.registerLazySingleton<CatalogRemoteDataSource>(
+    () => CatalogRemoteDataSourceImpl(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<CommerceRemoteDataSource>(
+    () => CommerceRemoteDataSourceImpl(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<CatalogRepository>(
+    () => CatalogRepositoryImpl(
+      catalogRemote: sl<CatalogRemoteDataSource>(),
+      commerceRemote: sl<CommerceRemoteDataSource>(),
+      networkInfo: sl<NetworkInfo>(),
+    ),
   );
 
   sl.registerLazySingleton<ThemeCubit>(
