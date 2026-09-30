@@ -1,0 +1,6 @@
+{
+  "name": "برهان | Burhan - وسيط الشراء من الصين",
+  "description": "منصة وسيطة ذكية للتسوق والشراء المباشر من المتاجر والأسواق الصينية (1688، Taobao، Goofish، AliExpress) إلى السوق العربي واليمن مع فحص الجودة والشحن المباشر.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

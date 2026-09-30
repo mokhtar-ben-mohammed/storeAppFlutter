@@ -31,7 +31,7 @@ class EnvConfig {
   factory EnvConfig.development() {
     return const EnvConfig(
       environment: Environment.development,
-      baseUrl: 'https://dev-api.burhan.app',
+      baseUrl: 'http://192.168.8.231:8000/api',
       apiVersion: 'v1',
       isDebug: true,
       enableLogging: true,

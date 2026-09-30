@@ -6,10 +6,13 @@ import 'package:store/features/authentication/presentation/cubits/auth_cubit.dar
 import 'package:store/features/authentication/presentation/cubits/auth_state.dart';
 import 'package:store/features/authentication/presentation/pages/login_page.dart';
 import 'package:store/features/authentication/presentation/pages/otp_page.dart';
+import 'package:store/features/authentication/presentation/pages/splash_page.dart';
+import 'package:store/features/authentication/presentation/pages/welcome_page.dart';
+import 'package:store/app/router/main_scaffold.dart';
+import 'package:store/core/widgets/bottom_nav.dart';
 import 'package:store/features/cart/presentation/pages/cart_page.dart';
 import 'package:store/features/checkout/presentation/pages/checkout_page.dart';
 import 'package:store/features/favorites/presentation/pages/favorites_page.dart';
-import 'package:store/features/home/presentation/pages/home_page.dart';
 import 'package:store/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:store/features/orders/presentation/pages/orders_page.dart';
 import 'package:store/features/products/presentation/pages/products_page.dart';
@@ -31,46 +34,80 @@ class GoRouterRefreshStream extends ChangeNotifier {
   }
 }
 
-/// Central routing configuration with auth guard and deep-linking support.
+/// Central routing configuration with auth gate and deep-linking support.
 class AppRouter {
   AppRouter({required this.authCubit});
 
   final AuthCubit authCubit;
 
   late final GoRouter router = GoRouter(
-    initialLocation: AppRoutes.home,
+    initialLocation: AppRoutes.splash,
     debugLogDiagnostics: false,
     refreshListenable: GoRouterRefreshStream(authCubit.stream),
     redirect: (BuildContext context, GoRouterState state) {
       final authState = authCubit.state;
       final location = state.uri.path;
-      final isLoggingIn = location == AppRoutes.login || location == AppRoutes.otp;
+      final isGateRoute = location == AppRoutes.splash ||
+          location == AppRoutes.welcome ||
+          location == AppRoutes.login ||
+          location == AppRoutes.otp;
 
-      // When authentication state is confirmed
-      if (authState is Authenticated) {
-        // Redirect authenticated users away from login pages
-        if (isLoggingIn) return AppRoutes.home;
+      if (authState is AuthInitial || authState is AuthLoading) {
+        if (location != AppRoutes.splash && !isGateRoute) {
+          return AppRoutes.splash;
+        }
+        return null;
+      }
+
+      final canBrowse = authState is Authenticated || authState is GuestBrowsing;
+
+      if (canBrowse) {
+        if (location == AppRoutes.splash ||
+            location == AppRoutes.welcome ||
+            location == AppRoutes.login) {
+          return AppRoutes.home;
+        }
+        return null;
+      }
+
+      // Unauthenticated / failure → keep on gate routes only
+      if (!isGateRoute) {
+        return AppRoutes.welcome;
       }
 
       return null;
     },
     routes: [
       GoRoute(
+        path: AppRoutes.splash,
+        name: AppRoutes.splashName,
+        builder: (context, state) => const SplashPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.welcome,
+        name: AppRoutes.welcomeName,
+        builder: (context, state) => const WelcomePage(),
+      ),
+      GoRoute(
         path: AppRoutes.home,
         name: AppRoutes.homeName,
-        builder: (context, state) => const HomePage(),
+        builder: (context, state) => const MainScaffold(initialTab: MainTab.home),
       ),
       GoRoute(
         path: AppRoutes.login,
         name: AppRoutes.loginName,
-        builder: (context, state) => const LoginPage(),
+        builder: (context, state) {
+          final mode = state.uri.queryParameters['mode'] ?? 'login';
+          return LoginPage(isRegister: mode == 'register');
+        },
       ),
       GoRoute(
         path: AppRoutes.otp,
         name: AppRoutes.otpName,
         builder: (context, state) {
           final phone = state.uri.queryParameters['phone'] ?? '';
-          return OtpPage(phone: phone);
+          final countryCode = state.uri.queryParameters['country_code'] ?? '+967';
+          return OtpPage(phone: phone, countryCode: countryCode);
         },
       ),
       GoRoute(

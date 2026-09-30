@@ -27,12 +27,16 @@ final class AuthLoading extends AuthState {
 
 /// Emitted when 6-digit OTP has been sent successfully to the phone number.
 final class AuthOtpSent extends AuthState {
-  const AuthOtpSent({required this.phone});
+  const AuthOtpSent({
+    required this.countryCode,
+    required this.phone,
+  });
 
+  final String countryCode;
   final String phone;
 
   @override
-  List<Object?> get props => [phone];
+  List<Object?> get props => [countryCode, phone];
 }
 
 /// Emitted when session is authenticated and active.
@@ -45,9 +49,14 @@ final class Authenticated extends AuthState {
   List<Object?> get props => [session];
 }
 
-/// Emitted when user is not authenticated (guest or after logout).
+/// Emitted when user is not authenticated (after logout or first launch).
 final class Unauthenticated extends AuthState {
   const Unauthenticated();
+}
+
+/// Emitted when the user continues browsing without signing in.
+final class GuestBrowsing extends AuthState {
+  const GuestBrowsing();
 }
 
 /// Emitted when an authentication operation fails.

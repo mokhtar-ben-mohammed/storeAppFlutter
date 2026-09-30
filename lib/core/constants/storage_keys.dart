@@ -10,4 +10,5 @@ class StorageKeys {
   static const String languageCode = 'language_code';
   static const String themeMode = 'theme_mode';
   static const String onboardingCompleted = 'onboarding_completed';
+  static const String guestMode = 'guest_mode';
 }

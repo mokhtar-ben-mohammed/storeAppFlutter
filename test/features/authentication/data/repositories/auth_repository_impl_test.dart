@@ -31,7 +31,8 @@ void main() {
     );
   });
 
-  const testPhone = '+967770000000';
+  const testCountryCode = '+967';
+  const testPhone = '770000000';
   const testOtp = '123456';
   const testSessionModel = AuthSessionModel(
     token: 'jwt_token_abc',
@@ -43,7 +44,11 @@ void main() {
     test('returns NetworkFailure when device is offline', () async {
       when(() => mockNetworkInfo.isConnected).thenAnswer((_) async => false);
 
-      final result = await repository.verifyOtp(phone: testPhone, otp: testOtp);
+      final result = await repository.verifyOtp(
+        countryCode: testCountryCode,
+        phone: testPhone,
+        otp: testOtp,
+      );
 
       expect(result.isFailure, isTrue);
       expect(result.failureOrNull, isA<NetworkFailure>());
@@ -52,14 +57,23 @@ void main() {
 
     test('stores session and returns AuthSessionEntity on successful verification', () async {
       when(() => mockNetworkInfo.isConnected).thenAnswer((_) async => true);
-      when(() => mockRemoteDataSource.verifyOtp(phone: testPhone, otp: testOtp))
-          .thenAnswer((_) async => testSessionModel);
+      when(
+        () => mockRemoteDataSource.verifyOtp(
+          countryCode: testCountryCode,
+          phone: testPhone,
+          otp: testOtp,
+        ),
+      ).thenAnswer((_) async => testSessionModel);
       when(() => mockLocalStorageService.setString(any(), any()))
           .thenAnswer((_) async => true);
       when(() => mockLocalStorageService.setBool(any(), any()))
           .thenAnswer((_) async => true);
 
-      final result = await repository.verifyOtp(phone: testPhone, otp: testOtp);
+      final result = await repository.verifyOtp(
+        countryCode: testCountryCode,
+        phone: testPhone,
+        otp: testOtp,
+      );
 
       expect(result.isSuccess, isTrue);
       expect(result.dataOrNull, equals(testSessionModel));

@@ -22,13 +22,19 @@ class AuthRepositoryImpl implements AuthRepository {
   final NetworkInfo networkInfo;
 
   @override
-  Future<Result<bool>> sendOtp(String phone) async {
+  Future<Result<bool>> sendOtp({
+    required String countryCode,
+    required String phone,
+  }) async {
     if (!await networkInfo.isConnected) {
       return const Result.failure(NetworkFailure());
     }
 
     try {
-      final success = await remoteDataSource.sendOtp(phone);
+      final success = await remoteDataSource.sendOtp(
+        countryCode: countryCode,
+        phone: phone,
+      );
       return Result.ok(success);
     } catch (e) {
       return Result.failure(NetworkExceptions.handle(e));
@@ -37,6 +43,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Result<AuthSessionEntity>> verifyOtp({
+    required String countryCode,
     required String phone,
     required String otp,
   }) async {
@@ -45,9 +52,12 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     try {
-      final session = await remoteDataSource.verifyOtp(phone: phone, otp: otp);
+      final session = await remoteDataSource.verifyOtp(
+        countryCode: countryCode,
+        phone: phone,
+        otp: otp,
+      );
 
-      // Persist session tokens and user identifiers locally
       await storageService.setString(StorageKeys.authToken, session.token);
       if (session.refreshToken != null) {
         await storageService.setString(StorageKeys.refreshToken, session.refreshToken!);

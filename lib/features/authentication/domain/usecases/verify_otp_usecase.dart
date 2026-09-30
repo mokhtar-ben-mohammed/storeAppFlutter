@@ -7,13 +7,18 @@ import 'package:store/features/authentication/domain/entities/auth_session_entit
 import 'package:store/features/authentication/domain/repositories/auth_repository.dart';
 
 class VerifyOtpParams extends Equatable {
-  const VerifyOtpParams({required this.phone, required this.otp});
+  const VerifyOtpParams({
+    required this.countryCode,
+    required this.phone,
+    required this.otp,
+  });
 
+  final String countryCode;
   final String phone;
   final String otp;
 
   @override
-  List<Object?> get props => [phone, otp];
+  List<Object?> get props => [countryCode, phone, otp];
 }
 
 class VerifyOtpUseCase implements UseCase<AuthSessionEntity, VerifyOtpParams> {
@@ -23,8 +28,13 @@ class VerifyOtpUseCase implements UseCase<AuthSessionEntity, VerifyOtpParams> {
 
   @override
   Future<Result<AuthSessionEntity>> call(VerifyOtpParams params) async {
+    final cleanCode = params.countryCode.trim();
     final cleanPhone = params.phone.trim();
     final cleanOtp = params.otp.trim();
+
+    if (cleanCode.isEmpty) {
+      return const Result.failure(ValidationFailure('Country code is required.'));
+    }
 
     if (cleanPhone.isEmpty) {
       return const Result.failure(ValidationFailure('Phone number is required.'));
@@ -36,6 +46,10 @@ class VerifyOtpUseCase implements UseCase<AuthSessionEntity, VerifyOtpParams> {
       );
     }
 
-    return _repository.verifyOtp(phone: cleanPhone, otp: cleanOtp);
+    return _repository.verifyOtp(
+      countryCode: cleanCode,
+      phone: cleanPhone,
+      otp: cleanOtp,
+    );
   }
 }

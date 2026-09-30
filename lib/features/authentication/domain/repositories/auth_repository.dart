@@ -3,11 +3,15 @@ import 'package:store/features/authentication/domain/entities/auth_session_entit
 
 /// Contract for authentication operations and session state.
 abstract interface class AuthRepository {
-  /// Request a 6-digit OTP to be sent to [phone].
-  Future<Result<bool>> sendOtp(String phone);
+  /// Request a 6-digit OTP for [phone] under [countryCode].
+  Future<Result<bool>> sendOtp({
+    required String countryCode,
+    required String phone,
+  });
 
-  /// Verify the 6-digit [otp] sent to [phone] and establish session.
+  /// Verify the 6-digit [otp] and establish session.
   Future<Result<AuthSessionEntity>> verifyOtp({
+    required String countryCode,
     required String phone,
     required String otp,
   });

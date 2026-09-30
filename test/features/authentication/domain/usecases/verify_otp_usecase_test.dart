@@ -18,7 +18,8 @@ void main() {
     useCase = VerifyOtpUseCase(mockRepository);
   });
 
-  const testPhone = '+967770000000';
+  const testCountryCode = '+967';
+  const testPhone = '770000000';
   const testOtp = '123456';
   const testSession = AuthSessionEntity(
     token: 'jwt_token_123',
@@ -27,7 +28,13 @@ void main() {
 
   group('VerifyOtpUseCase', () {
     test('returns ValidationFailure when OTP is less than 6 digits', () async {
-      final result = await useCase(const VerifyOtpParams(phone: testPhone, otp: '123'));
+      final result = await useCase(
+        const VerifyOtpParams(
+          countryCode: testCountryCode,
+          phone: testPhone,
+          otp: '123',
+        ),
+      );
 
       expect(result.isFailure, isTrue);
       expect(result.failureOrNull, isA<ValidationFailure>());
@@ -35,7 +42,27 @@ void main() {
     });
 
     test('returns ValidationFailure when phone is empty', () async {
-      final result = await useCase(const VerifyOtpParams(phone: '', otp: testOtp));
+      final result = await useCase(
+        const VerifyOtpParams(
+          countryCode: testCountryCode,
+          phone: '',
+          otp: testOtp,
+        ),
+      );
+
+      expect(result.isFailure, isTrue);
+      expect(result.failureOrNull, isA<ValidationFailure>());
+      verifyZeroInteractions(mockRepository);
+    });
+
+    test('returns ValidationFailure when country code is empty', () async {
+      final result = await useCase(
+        const VerifyOtpParams(
+          countryCode: '',
+          phone: testPhone,
+          otp: testOtp,
+        ),
+      );
 
       expect(result.isFailure, isTrue);
       expect(result.failureOrNull, isA<ValidationFailure>());
@@ -43,14 +70,31 @@ void main() {
     });
 
     test('delegates to repository and returns AuthSessionEntity on valid inputs', () async {
-      when(() => mockRepository.verifyOtp(phone: testPhone, otp: testOtp))
-          .thenAnswer((_) async => const Result.ok(testSession));
+      when(
+        () => mockRepository.verifyOtp(
+          countryCode: testCountryCode,
+          phone: testPhone,
+          otp: testOtp,
+        ),
+      ).thenAnswer((_) async => const Result.ok(testSession));
 
-      final result = await useCase(const VerifyOtpParams(phone: testPhone, otp: testOtp));
+      final result = await useCase(
+        const VerifyOtpParams(
+          countryCode: testCountryCode,
+          phone: testPhone,
+          otp: testOtp,
+        ),
+      );
 
       expect(result.isSuccess, isTrue);
       expect(result.dataOrNull, equals(testSession));
-      verify(() => mockRepository.verifyOtp(phone: testPhone, otp: testOtp)).called(1);
+      verify(
+        () => mockRepository.verifyOtp(
+          countryCode: testCountryCode,
+          phone: testPhone,
+          otp: testOtp,
+        ),
+      ).called(1);
     });
   });
 }

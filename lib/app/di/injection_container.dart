@@ -25,6 +25,10 @@ import 'package:store/features/authentication/domain/usecases/logout_usecase.dar
 import 'package:store/features/authentication/domain/usecases/send_otp_usecase.dart';
 import 'package:store/features/authentication/domain/usecases/verify_otp_usecase.dart';
 import 'package:store/features/authentication/presentation/cubits/auth_cubit.dart';
+import 'package:store/features/geography/data/datasources/geography_remote_data_source.dart';
+import 'package:store/features/geography/data/repositories/geography_repository_impl.dart';
+import 'package:store/features/geography/domain/repositories/geography_repository.dart';
+import 'package:store/features/geography/domain/usecases/get_countries_usecase.dart';
 
 final GetIt sl = GetIt.instance;
 
@@ -70,12 +74,9 @@ Future<void> initDependencies({
   );
 
   // 5. Authentication Feature
-  // Data sources
   sl.registerLazySingleton<AuthRemoteDataSource>(
     () => AuthRemoteDataSourceImpl(sl<ApiClient>()),
   );
-
-  // Repositories
   sl.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(
       remoteDataSource: sl<AuthRemoteDataSource>(),
@@ -83,8 +84,6 @@ Future<void> initDependencies({
       networkInfo: sl<NetworkInfo>(),
     ),
   );
-
-  // Use cases
   sl.registerLazySingleton<SendOtpUseCase>(
     () => SendOtpUseCase(sl<AuthRepository>()),
   );
@@ -97,21 +96,36 @@ Future<void> initDependencies({
   sl.registerLazySingleton<GetCurrentSessionUseCase>(
     () => GetCurrentSessionUseCase(sl<AuthRepository>()),
   );
-
-  // Cubits
-  sl.registerFactory<AuthCubit>(
+  // Singleton so AppRouter redirect and UI share the same auth stream.
+  sl.registerLazySingleton<AuthCubit>(
     () => AuthCubit(
       getCurrentSessionUseCase: sl<GetCurrentSessionUseCase>(),
       sendOtpUseCase: sl<SendOtpUseCase>(),
       verifyOtpUseCase: sl<VerifyOtpUseCase>(),
       logoutUseCase: sl<LogoutUseCase>(),
+      storageService: sl<LocalStorageService>(),
     ),
   );
+
+  // 6. Geography Feature
+  sl.registerLazySingleton<GeographyRemoteDataSource>(
+    () => GeographyRemoteDataSourceImpl(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<GeographyRepository>(
+    () => GeographyRepositoryImpl(
+      remoteDataSource: sl<GeographyRemoteDataSource>(),
+      networkInfo: sl<NetworkInfo>(),
+    ),
+  );
+  sl.registerLazySingleton<GetCountriesUseCase>(
+    () => GetCountriesUseCase(sl<GeographyRepository>()),
+  );
+
   sl.registerLazySingleton<ThemeCubit>(
     () => ThemeCubit(sl<LocalStorageService>()),
   );
 
-  // 6. Router
+  // 7. Router
   sl.registerLazySingleton<AppRouter>(
     () => AppRouter(authCubit: sl<AuthCubit>()),
   );

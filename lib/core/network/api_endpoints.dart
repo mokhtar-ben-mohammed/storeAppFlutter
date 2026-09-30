@@ -9,8 +9,14 @@ class ApiEndpoints {
   static const String profile = '/auth/profile';
   static const String refreshToken = '/auth/refresh';
 
-  // Products & Home (Placeholders)
+  // Home & Catalog
   static const String home = '/home';
+  static const String catalogChannels = '/catalog/channels';
+
+  // Geography
+  static const String countries = '/countries';
+
+  // Products (Placeholders)
   static const String products = '/products';
   static const String categories = '/categories';
 

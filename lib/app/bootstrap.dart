@@ -9,6 +9,7 @@ import 'package:store/app/di/injection_container.dart';
 import 'package:store/core/firebase/firebase_service.dart';
 import 'package:store/core/localization/localization_config.dart';
 import 'package:store/core/logging/app_logger.dart';
+import 'package:store/features/authentication/presentation/cubits/auth_cubit.dart';
 
 /// Central application bootstrapper.
 /// Orchestrates startup sequence deterministically before rendering UI.
@@ -39,7 +40,10 @@ Future<void> bootstrap({EnvConfig? envConfig}) async {
   // 7. Initialize EasyLocalization
   await EasyLocalization.ensureInitialized();
 
-  // 8. Run App with Localization wrapper
+  // 8. Restore auth session before first frame
+  unawaited(sl<AuthCubit>().checkAuthStatus());
+
+  // 9. Run App with Localization wrapper
   runApp(
     LocalizationConfig.wrap(
       child: const BurhanApp(),

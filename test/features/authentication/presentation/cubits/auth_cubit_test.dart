@@ -1,7 +1,9 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:store/core/constants/storage_keys.dart';
 import 'package:store/core/errors/failures.dart';
+import 'package:store/core/storage/local_storage_service.dart';
 import 'package:store/core/utils/result.dart';
 import 'package:store/core/utils/usecase.dart';
 import 'package:store/features/authentication/domain/entities/auth_session_entity.dart';
@@ -17,6 +19,7 @@ class MockGetCurrentSessionUseCase extends Mock implements GetCurrentSessionUseC
 class MockSendOtpUseCase extends Mock implements SendOtpUseCase {}
 class MockVerifyOtpUseCase extends Mock implements VerifyOtpUseCase {}
 class MockLogoutUseCase extends Mock implements LogoutUseCase {}
+class MockLocalStorageService extends Mock implements LocalStorageService {}
 
 void main() {
   late AuthCubit cubit;
@@ -24,22 +27,28 @@ void main() {
   late MockSendOtpUseCase mockSendOtpUseCase;
   late MockVerifyOtpUseCase mockVerifyOtpUseCase;
   late MockLogoutUseCase mockLogoutUseCase;
+  late MockLocalStorageService mockStorage;
 
   setUp(() {
     mockGetCurrentSessionUseCase = MockGetCurrentSessionUseCase();
     mockSendOtpUseCase = MockSendOtpUseCase();
     mockVerifyOtpUseCase = MockVerifyOtpUseCase();
     mockLogoutUseCase = MockLogoutUseCase();
+    mockStorage = MockLocalStorageService();
+    when(() => mockStorage.getBool(any())).thenReturn(false);
+    when(() => mockStorage.setBool(any(), any())).thenAnswer((_) async => true);
 
     cubit = AuthCubit(
       getCurrentSessionUseCase: mockGetCurrentSessionUseCase,
       sendOtpUseCase: mockSendOtpUseCase,
       verifyOtpUseCase: mockVerifyOtpUseCase,
       logoutUseCase: mockLogoutUseCase,
+      storageService: mockStorage,
     );
   });
 
-  const testPhone = '+967770000000';
+  const testCountryCode = '+967';
+  const testPhone = '770000000';
   const testOtp = '123456';
   const testSession = AuthSessionEntity(
     token: 'jwt_123',
@@ -66,6 +75,21 @@ void main() {
     );
 
     blocTest<AuthCubit, AuthState>(
+      'emits [AuthLoading, GuestBrowsing] when guest mode is enabled',
+      build: () {
+        when(() => mockGetCurrentSessionUseCase(const NoParams()))
+            .thenAnswer((_) async => const Result.ok(null));
+        when(() => mockStorage.getBool(StorageKeys.guestMode)).thenReturn(true);
+        return cubit;
+      },
+      act: (cubit) => cubit.checkAuthStatus(),
+      expect: () => [
+        const AuthLoading(message: 'Checking session...'),
+        const GuestBrowsing(),
+      ],
+    );
+
+    blocTest<AuthCubit, AuthState>(
       'emits [AuthLoading, Unauthenticated] when no session found on checkAuthStatus',
       build: () {
         when(() => mockGetCurrentSessionUseCase(const NoParams()))
@@ -80,27 +104,45 @@ void main() {
     );
 
     blocTest<AuthCubit, AuthState>(
+      'emits [GuestBrowsing] on continueAsGuest',
+      build: () => cubit,
+      act: (cubit) => cubit.continueAsGuest(),
+      expect: () => [const GuestBrowsing()],
+      verify: (_) {
+        verify(() => mockStorage.setBool(StorageKeys.guestMode, true)).called(1);
+      },
+    );
+
+    blocTest<AuthCubit, AuthState>(
       'emits [AuthLoading, AuthOtpSent] on successful sendOtp',
       build: () {
-        when(() => mockSendOtpUseCase(const SendOtpParams(testPhone)))
-            .thenAnswer((_) async => const Result.ok(true));
+        when(
+          () => mockSendOtpUseCase(
+            const SendOtpParams(countryCode: testCountryCode, phone: testPhone),
+          ),
+        ).thenAnswer((_) async => const Result.ok(true));
         return cubit;
       },
-      act: (cubit) => cubit.sendOtp(testPhone),
+      act: (cubit) => cubit.sendOtp(countryCode: testCountryCode, phone: testPhone),
       expect: () => [
         const AuthLoading(message: 'Sending OTP...'),
-        const AuthOtpSent(phone: testPhone),
+        const AuthOtpSent(countryCode: testCountryCode, phone: testPhone),
       ],
     );
 
     blocTest<AuthCubit, AuthState>(
       'emits [AuthLoading, AuthFailure] when sendOtp fails with validation error',
       build: () {
-        when(() => mockSendOtpUseCase(const SendOtpParams('123')))
-            .thenAnswer((_) async => const Result.failure(ValidationFailure('Invalid phone number.')));
+        when(
+          () => mockSendOtpUseCase(
+            const SendOtpParams(countryCode: testCountryCode, phone: '123'),
+          ),
+        ).thenAnswer(
+          (_) async => const Result.failure(ValidationFailure('Invalid phone number.')),
+        );
         return cubit;
       },
-      act: (cubit) => cubit.sendOtp('123'),
+      act: (cubit) => cubit.sendOtp(countryCode: testCountryCode, phone: '123'),
       expect: () => [
         const AuthLoading(message: 'Sending OTP...'),
         const AuthFailure(ValidationFailure('Invalid phone number.')),
@@ -110,11 +152,22 @@ void main() {
     blocTest<AuthCubit, AuthState>(
       'emits [AuthLoading, Authenticated] on successful verifyOtp',
       build: () {
-        when(() => mockVerifyOtpUseCase(const VerifyOtpParams(phone: testPhone, otp: testOtp)))
-            .thenAnswer((_) async => const Result.ok(testSession));
+        when(
+          () => mockVerifyOtpUseCase(
+            const VerifyOtpParams(
+              countryCode: testCountryCode,
+              phone: testPhone,
+              otp: testOtp,
+            ),
+          ),
+        ).thenAnswer((_) async => const Result.ok(testSession));
         return cubit;
       },
-      act: (cubit) => cubit.verifyOtp(phone: testPhone, otp: testOtp),
+      act: (cubit) => cubit.verifyOtp(
+            countryCode: testCountryCode,
+            phone: testPhone,
+            otp: testOtp,
+          ),
       expect: () => [
         const AuthLoading(message: 'Verifying OTP...'),
         const Authenticated(testSession),

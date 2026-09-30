@@ -21,8 +21,8 @@ class BurhanApp extends StatelessWidget {
         BlocProvider<ThemeCubit>.value(
           value: sl<ThemeCubit>(),
         ),
-        BlocProvider<AuthCubit>(
-          create: (_) => sl<AuthCubit>()..checkAuthStatus(),
+        BlocProvider<AuthCubit>.value(
+          value: sl<AuthCubit>(),
         ),
       ],
       child: BlocBuilder<ThemeCubit, ThemeState>(
