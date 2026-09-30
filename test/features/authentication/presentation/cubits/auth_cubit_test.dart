@@ -75,18 +75,22 @@ void main() {
     );
 
     blocTest<AuthCubit, AuthState>(
-      'emits [AuthLoading, GuestBrowsing] when guest mode is enabled',
+      'resets guestMode and emits [AuthLoading, Unauthenticated] on cold start without session',
       build: () {
         when(() => mockGetCurrentSessionUseCase(const NoParams()))
             .thenAnswer((_) async => const Result.ok(null));
-        when(() => mockStorage.getBool(StorageKeys.guestMode)).thenReturn(true);
+        when(() => mockStorage.setBool(StorageKeys.guestMode, false))
+            .thenAnswer((_) async => true);
         return cubit;
       },
       act: (cubit) => cubit.checkAuthStatus(),
       expect: () => [
         const AuthLoading(message: 'Checking session...'),
-        const GuestBrowsing(),
+        const Unauthenticated(),
       ],
+      verify: (_) {
+        verify(() => mockStorage.setBool(StorageKeys.guestMode, false)).called(1);
+      },
     );
 
     blocTest<AuthCubit, AuthState>(

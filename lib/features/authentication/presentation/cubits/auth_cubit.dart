@@ -35,10 +35,8 @@ class AuthCubit extends Cubit<AuthState> {
         emit(Authenticated(session));
         return;
       }
-      if (storageService.getBool(StorageKeys.guestMode) ?? false) {
-        emit(const GuestBrowsing());
-        return;
-      }
+      // Guest mode is per-session. On fresh app launch without an account, reset guest flag.
+      await storageService.setBool(StorageKeys.guestMode, false);
       emit(const Unauthenticated());
       return;
     }

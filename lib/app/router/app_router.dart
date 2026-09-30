@@ -50,8 +50,14 @@ class AppRouter {
           location == AppRoutes.login ||
           location == AppRoutes.otp;
 
+      // 1. NEVER redirect away while on the splash screen!
+      // SplashPage will show its animation and navigate after session check.
+      if (location == AppRoutes.splash) {
+        return null;
+      }
+
       if (authState is AuthInitial || authState is AuthLoading) {
-        if (location != AppRoutes.splash && !isGateRoute) {
+        if (!isGateRoute) {
           return AppRoutes.splash;
         }
         return null;
@@ -59,14 +65,15 @@ class AppRouter {
 
       final canBrowse = authState is Authenticated || authState is GuestBrowsing;
 
+      // 2. If user is authenticated or chose guest browsing while on login, send to home
       if (canBrowse) {
-        if (location == AppRoutes.splash || location == AppRoutes.login) {
+        if (location == AppRoutes.login) {
           return AppRoutes.home;
         }
         return null;
       }
 
-      // Unauthenticated / failure → keep on gate routes (direct to login)
+      // 3. Unauthenticated / failure → keep on gate routes (direct to login)
       if (!isGateRoute) {
         return AppRoutes.login;
       }

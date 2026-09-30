@@ -46,7 +46,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
     if (state is AuthInitial || state is AuthLoading) return;
 
     _navigated = true;
-    if (state is Authenticated || state is GuestBrowsing) {
+    if (state is Authenticated) {
       context.go(AppRoutes.home);
     } else {
       context.go(AppRoutes.login);
