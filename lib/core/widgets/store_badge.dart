@@ -4,6 +4,8 @@ import 'package:store/core/theme/burhan_typography.dart';
 
 enum StoreType { s1688, taobao, goofish, aliexpress }
 
+enum StoreBadgeSize { sm, md }
+
 /// Badge widget indicating Chinese marketplace origin.
 class StoreBadge extends StatelessWidget {
   const StoreBadge({
@@ -11,11 +13,14 @@ class StoreBadge extends StatelessWidget {
     required this.store,
     this.showChineseLabel = true,
     this.isSmall = false,
+    this.size,
   });
 
-  final StoreType store;
+  /// Can be either [StoreType] or a [String] (e.g. '1688', 'taobao', etc.).
+  final dynamic store;
   final bool showChineseLabel;
   final bool isSmall;
+  final StoreBadgeSize? size;
 
   static StoreType fromString(String str) {
     return switch (str.toLowerCase()) {
@@ -27,8 +32,15 @@ class StoreBadge extends StatelessWidget {
     };
   }
 
+  StoreType get _resolvedStore {
+    if (store is StoreType) return store as StoreType;
+    return fromString(store?.toString() ?? '');
+  }
+
+  bool get _effectiveSmall => isSmall || size == StoreBadgeSize.sm;
+
   (String name, String cnName, Color bg, Color border, Color text) get _config =>
-      switch (store) {
+      switch (_resolvedStore) {
         StoreType.s1688 => (
             '1688',
             '阿里巴巴',
@@ -62,11 +74,12 @@ class StoreBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (name, cnName, bg, border, text) = _config;
+    final small = _effectiveSmall;
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: isSmall ? 5 : 7,
-        vertical: isSmall ? 1.5 : 2.5,
+        horizontal: small ? 5 : 7,
+        vertical: small ? 1.5 : 2.5,
       ),
       decoration: BoxDecoration(
         color: bg,
@@ -80,7 +93,7 @@ class StoreBadge extends StatelessWidget {
             name,
             style: BurhanTypography.badge.copyWith(
               color: text,
-              fontSize: isSmall ? 9 : 10.5,
+              fontSize: small ? 9 : 10.5,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -90,7 +103,7 @@ class StoreBadge extends StatelessWidget {
               cnName,
               style: BurhanTypography.caption.copyWith(
                 color: text.withValues(alpha: 0.75),
-                fontSize: isSmall ? 8.5 : 9.5,
+                fontSize: small ? 8.5 : 9.5,
                 fontWeight: FontWeight.w400,
               ),
             ),

@@ -62,4 +62,16 @@ class BurhanTypography {
         color: BurhanColors.primary,
         letterSpacing: -0.3,
       );
+
+  static TextStyle get buttonMedium => GoogleFonts.tajawal(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: Colors.white,
+      );
+
+  static TextStyle get buttonSmall => GoogleFonts.tajawal(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        color: Colors.white,
+      );
 }

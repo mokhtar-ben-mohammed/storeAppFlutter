@@ -17,6 +17,10 @@ class AppRoutes {
   // Feature routes (Protected/Private)
   static const String products = '/products';
   static const String productsName = 'products';
+  static const String storeProducts = '/store-products';
+  static const String storeProductsName = 'store-products';
+  static const String productDetails = '/product-details';
+  static const String productDetailsName = 'product-details';
   static const String cart = '/cart';
   static const String cartName = 'cart';
   static const String checkout = '/checkout';

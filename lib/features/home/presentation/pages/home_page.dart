@@ -10,6 +10,8 @@ import 'package:store/features/home/domain/entities/catalog_channel_entity.dart'
 import 'package:store/features/home/presentation/cubits/home_cubit.dart';
 import 'package:store/features/home/presentation/cubits/home_state.dart';
 import 'package:store/features/products/domain/entities/product_entity.dart';
+import 'package:store/features/products/presentation/pages/product_details_page.dart';
+import 'package:store/features/products/presentation/pages/store_products_page.dart';
 
 /// Main home screen: carousel (local) + channels + featured products from API.
 class HomePage extends StatefulWidget {
@@ -202,10 +204,11 @@ class _HomePageState extends State<HomePage> {
                             stores: _mapChannels(channels),
                             selectedStoreId: _selectedStore,
                             onStoreSelected: (storeId) {
-                              setState(() {
-                                _selectedStore =
-                                    _selectedStore == storeId ? null : storeId;
-                              });
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => StoreProductsPage(storeId: storeId),
+                                ),
+                              );
                             },
                           ),
                         const SizedBox(height: 16),
@@ -280,12 +283,9 @@ class _HomePageState extends State<HomePage> {
                                 onToggleFavorite: () => _toggleFavorite(product.id),
                                 onAddToCart: () => _addToCart(product),
                                 onTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('تفاصيل المنتج: ${product.title}'),
-                                      duration: const Duration(milliseconds: 1200),
-                                      backgroundColor: BurhanColors.slate900,
-                                      behavior: SnackBarBehavior.floating,
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => ProductDetailsPage(product: product),
                                     ),
                                   );
                                 },

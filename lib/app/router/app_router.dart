@@ -14,7 +14,11 @@ import 'package:store/features/checkout/presentation/pages/checkout_page.dart';
 import 'package:store/features/favorites/presentation/pages/favorites_page.dart';
 import 'package:store/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:store/features/orders/presentation/pages/orders_page.dart';
+import 'package:store/features/products/domain/entities/product_entity.dart';
+import 'package:store/features/products/presentation/data/mock_products_data.dart';
+import 'package:store/features/products/presentation/pages/product_details_page.dart';
 import 'package:store/features/products/presentation/pages/products_page.dart';
+import 'package:store/features/products/presentation/pages/store_products_page.dart';
 import 'package:store/features/profile/presentation/pages/profile_page.dart';
 
 /// Adapter converting a Stream to a [ChangeNotifier] for [GoRouter.refreshListenable].
@@ -116,7 +120,27 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.products,
         name: AppRoutes.productsName,
-        builder: (context, state) => const ProductsPage(),
+        builder: (context, state) {
+          final initialStore = state.uri.queryParameters['store'] ?? 'all';
+          return ProductsPage(initialStore: initialStore);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.storeProducts,
+        name: AppRoutes.storeProductsName,
+        builder: (context, state) {
+          final storeId = state.uri.queryParameters['store'] ?? '1688';
+          return StoreProductsPage(storeId: storeId);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.productDetails,
+        name: AppRoutes.productDetailsName,
+        builder: (context, state) {
+          final product = state.extra as ProductEntity? ??
+              MockProductsData.getById(state.uri.queryParameters['id'] ?? 'prod-1')!;
+          return ProductDetailsPage(product: product);
+        },
       ),
       GoRoute(
         path: AppRoutes.cart,
