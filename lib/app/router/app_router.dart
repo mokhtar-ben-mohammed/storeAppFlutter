@@ -80,11 +80,6 @@ class AppRouter {
         builder: (context, state) => const SplashPage(),
       ),
       GoRoute(
-        path: AppRoutes.welcome,
-        name: AppRoutes.welcomeName,
-        redirect: (_, _) => AppRoutes.login,
-      ),
-      GoRoute(
         path: AppRoutes.home,
         name: AppRoutes.homeName,
         builder: (context, state) => const MainScaffold(initialTab: MainTab.home),
