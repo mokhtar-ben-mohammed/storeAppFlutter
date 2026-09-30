@@ -107,7 +107,12 @@ class AppRouter {
         builder: (context, state) {
           final phone = state.uri.queryParameters['phone'] ?? '';
           final countryCode = state.uri.queryParameters['country_code'] ?? '+967';
-          return OtpPage(phone: phone, countryCode: countryCode);
+          final isRegister = state.uri.queryParameters['is_register'] == 'true';
+          return OtpPage(
+            phone: phone,
+            countryCode: countryCode,
+            isRegister: isRegister,
+          );
         },
       ),
       GoRoute(

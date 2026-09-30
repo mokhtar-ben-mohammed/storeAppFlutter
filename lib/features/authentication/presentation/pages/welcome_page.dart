@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:store/app/router/app_routes.dart';
 import 'package:store/core/theme/burhan_colors.dart';
 import 'package:store/core/theme/burhan_typography.dart';
+import 'package:store/core/widgets/burhan_logo.dart';
 import 'package:store/features/authentication/presentation/cubits/auth_cubit.dart';
 import 'package:store/features/authentication/presentation/cubits/auth_state.dart';
 
@@ -37,22 +38,18 @@ class WelcomePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Spacer(flex: 2),
-                  Text(
-                    'برهان',
-                    textAlign: TextAlign.center,
-                    style: BurhanTypography.headline.copyWith(
-                      fontSize: 42,
-                      color: Colors.white,
-                    ),
+                  const BurhanLogo(
+                    size: BurhanLogoSize.xl,
+                    variant: BurhanLogoVariant.full,
+                    isLight: true,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   Text(
-                    'ادخل بحسابك أو تصفّح كضيف\nلاستكشاف المتاجر والمنتجات',
+                    'بوابتك المباشرة للشراء من الصين إلى اليمن 🇾🇪\nادخل بحسابك أو تصفّح كضيف لاستكشاف المتاجر والمنتجات',
                     textAlign: TextAlign.center,
                     style: BurhanTypography.bodyMedium.copyWith(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 14,
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 13,
                       height: 1.5,
                     ),
                   ),
