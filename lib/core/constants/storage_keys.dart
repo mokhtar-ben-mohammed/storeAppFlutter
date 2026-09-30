@@ -11,4 +11,6 @@ class StorageKeys {
   static const String themeMode = 'theme_mode';
   static const String onboardingCompleted = 'onboarding_completed';
   static const String guestMode = 'guest_mode';
+  static const String userProfileJson = 'user_profile_json';
+  static const String notificationsEnabled = 'notifications_enabled';
 }

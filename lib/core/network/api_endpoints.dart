@@ -7,6 +7,7 @@ class ApiEndpoints {
   static const String verifyOtp = '/auth/otp/verify';
   static const String logout = '/auth/logout';
   static const String profile = '/auth/profile';
+  static const String deleteAccount = '/auth/account';
   static const String refreshToken = '/auth/refresh';
 
   // Home & Catalog
@@ -15,6 +16,12 @@ class ApiEndpoints {
 
   // Geography
   static const String countries = '/countries';
+
+  // Finance
+  static const String currencies = '/currencies';
+
+  // Platform content
+  static const String contentPages = '/content-pages';
 
   // Products (Placeholders)
   static const String products = '/products';

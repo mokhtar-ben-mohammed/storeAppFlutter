@@ -22,18 +22,28 @@ import 'package:store/features/authentication/data/repositories/auth_repository_
 import 'package:store/features/authentication/domain/repositories/auth_repository.dart';
 import 'package:store/features/authentication/domain/usecases/get_current_session_usecase.dart';
 import 'package:store/features/authentication/domain/usecases/logout_usecase.dart';
+import 'package:store/features/authentication/domain/usecases/profile_usecases.dart';
 import 'package:store/features/authentication/domain/usecases/send_otp_usecase.dart';
 import 'package:store/features/authentication/domain/usecases/verify_otp_usecase.dart';
 import 'package:store/features/authentication/presentation/cubits/auth_cubit.dart';
+import 'package:store/features/finance/data/datasources/currency_remote_data_source.dart';
+import 'package:store/features/finance/data/repositories/currency_repository_impl.dart';
+import 'package:store/features/finance/domain/repositories/currency_repository.dart';
+import 'package:store/features/finance/domain/usecases/get_currencies_usecase.dart';
 import 'package:store/features/geography/data/datasources/geography_remote_data_source.dart';
 import 'package:store/features/geography/data/repositories/geography_repository_impl.dart';
 import 'package:store/features/geography/domain/repositories/geography_repository.dart';
+import 'package:store/features/geography/domain/usecases/get_cities_usecase.dart';
 import 'package:store/features/geography/domain/usecases/get_countries_usecase.dart';
 import 'package:store/features/home/data/datasources/home_remote_data_source.dart';
 import 'package:store/features/home/data/repositories/home_repository_impl.dart';
 import 'package:store/features/home/domain/repositories/home_repository.dart';
 import 'package:store/features/home/domain/usecases/get_home_feed_usecase.dart';
 import 'package:store/features/home/presentation/cubits/home_cubit.dart';
+import 'package:store/features/platform/data/datasources/content_page_remote_data_source.dart';
+import 'package:store/features/platform/data/repositories/content_page_repository_impl.dart';
+import 'package:store/features/platform/domain/repositories/content_page_repository.dart';
+import 'package:store/features/platform/domain/usecases/get_content_pages_usecase.dart';
 
 final GetIt sl = GetIt.instance;
 
@@ -101,6 +111,15 @@ Future<void> initDependencies({
   sl.registerLazySingleton<GetCurrentSessionUseCase>(
     () => GetCurrentSessionUseCase(sl<AuthRepository>()),
   );
+  sl.registerLazySingleton<GetProfileUseCase>(
+    () => GetProfileUseCase(sl<AuthRepository>()),
+  );
+  sl.registerLazySingleton<UpdateProfileUseCase>(
+    () => UpdateProfileUseCase(sl<AuthRepository>()),
+  );
+  sl.registerLazySingleton<DeleteAccountUseCase>(
+    () => DeleteAccountUseCase(sl<AuthRepository>()),
+  );
   // Singleton so AppRouter redirect and UI share the same auth stream.
   sl.registerLazySingleton<AuthCubit>(
     () => AuthCubit(
@@ -108,6 +127,9 @@ Future<void> initDependencies({
       sendOtpUseCase: sl<SendOtpUseCase>(),
       verifyOtpUseCase: sl<VerifyOtpUseCase>(),
       logoutUseCase: sl<LogoutUseCase>(),
+      getProfileUseCase: sl<GetProfileUseCase>(),
+      updateProfileUseCase: sl<UpdateProfileUseCase>(),
+      deleteAccountUseCase: sl<DeleteAccountUseCase>(),
       storageService: sl<LocalStorageService>(),
     ),
   );
@@ -124,6 +146,37 @@ Future<void> initDependencies({
   );
   sl.registerLazySingleton<GetCountriesUseCase>(
     () => GetCountriesUseCase(sl<GeographyRepository>()),
+  );
+  sl.registerLazySingleton<GetCitiesUseCase>(
+    () => GetCitiesUseCase(sl<GeographyRepository>()),
+  );
+
+  // Finance / Currencies
+  sl.registerLazySingleton<CurrencyRemoteDataSource>(
+    () => CurrencyRemoteDataSourceImpl(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<CurrencyRepository>(
+    () => CurrencyRepositoryImpl(
+      remoteDataSource: sl<CurrencyRemoteDataSource>(),
+      networkInfo: sl<NetworkInfo>(),
+    ),
+  );
+  sl.registerLazySingleton<GetCurrenciesUseCase>(
+    () => GetCurrenciesUseCase(sl<CurrencyRepository>()),
+  );
+
+  // Platform content
+  sl.registerLazySingleton<ContentPageRemoteDataSource>(
+    () => ContentPageRemoteDataSourceImpl(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<ContentPageRepository>(
+    () => ContentPageRepositoryImpl(
+      remoteDataSource: sl<ContentPageRemoteDataSource>(),
+      networkInfo: sl<NetworkInfo>(),
+    ),
+  );
+  sl.registerLazySingleton<GetContentPagesUseCase>(
+    () => GetContentPagesUseCase(sl<ContentPageRepository>()),
   );
 
   // 7. Home / Catalog feed

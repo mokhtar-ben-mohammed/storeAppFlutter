@@ -62,6 +62,7 @@ void main() {
           countryCode: testCountryCode,
           phone: testPhone,
           otp: testOtp,
+          registration: null,
         ),
       ).thenAnswer((_) async => testSessionModel);
       when(() => mockLocalStorageService.setString(any(), any()))

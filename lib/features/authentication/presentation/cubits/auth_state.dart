@@ -30,13 +30,15 @@ final class AuthOtpSent extends AuthState {
   const AuthOtpSent({
     required this.countryCode,
     required this.phone,
+    this.isRegister = false,
   });
 
   final String countryCode;
   final String phone;
+  final bool isRegister;
 
   @override
-  List<Object?> get props => [countryCode, phone];
+  List<Object?> get props => [countryCode, phone, isRegister];
 }
 
 /// Emitted when session is authenticated and active.

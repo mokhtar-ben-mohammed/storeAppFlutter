@@ -2,27 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:store/app/di/injection_container.dart';
 import 'package:store/app/router/app_routes.dart';
 import 'package:store/core/theme/burhan_colors.dart';
 import 'package:store/core/theme/burhan_typography.dart';
+import 'package:store/core/utils/usecase.dart';
 import 'package:store/core/widgets/burhan_logo.dart';
+import 'package:store/features/authentication/domain/entities/registration_draft.dart';
 import 'package:store/features/authentication/presentation/cubits/auth_cubit.dart';
 import 'package:store/features/authentication/presentation/cubits/auth_state.dart';
-
-/// Country model for dial code selection with flags.
-class _AuthCountry {
-  const _AuthCountry({
-    required this.nameAr,
-    required this.dialCode,
-    required this.flag,
-    required this.example,
-  });
-
-  final String nameAr;
-  final String dialCode;
-  final String flag;
-  final String example;
-}
+import 'package:store/features/authentication/presentation/widgets/auth_picker_sheet.dart';
+import 'package:store/features/authentication/presentation/widgets/register_extras_panel.dart';
+import 'package:store/features/geography/domain/entities/country_entity.dart';
+import 'package:store/features/geography/domain/usecases/get_countries_usecase.dart';
 
 /// Redesigned login / registration screen reflecting Burhan's brand identity.
 class LoginPage extends StatefulWidget {
@@ -35,151 +28,154 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  static const List<_AuthCountry> _countries = [
-    _AuthCountry(nameAr: 'اليمن', dialCode: '+967', flag: '🇾🇪', example: '77XXXXXXX'),
-    _AuthCountry(nameAr: 'السعودية', dialCode: '+966', flag: '🇸🇦', example: '50XXXXXXX'),
-    _AuthCountry(nameAr: 'الإمارات', dialCode: '+971', flag: '🇦🇪', example: '50XXXXXXX'),
-    _AuthCountry(nameAr: 'عُمان', dialCode: '+968', flag: '🇴🇲', example: '9XXXXXXX'),
-    _AuthCountry(nameAr: 'مصر', dialCode: '+20', flag: '🇪🇬', example: '10XXXXXXXX'),
-    _AuthCountry(nameAr: 'الكويت', dialCode: '+965', flag: '🇰🇼', example: '9XXXXXXX'),
-    _AuthCountry(nameAr: 'قطر', dialCode: '+974', flag: '🇶🇦', example: '5XXXXXXX'),
-    _AuthCountry(nameAr: 'الصين', dialCode: '+86', flag: '🇨🇳', example: '13XXXXXXXXX'),
-  ];
-
   late bool _isRegisterMode;
-  late _AuthCountry _selectedCountry;
 
   final _phoneController = TextEditingController();
+  final _nameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _registerExtrasKey = GlobalKey<RegisterExtrasPanelState>();
   String? _inlineError;
+
+  List<CountryEntity> _countries = const [];
+  CountryEntity? _selectedDialCountry;
+  bool _loadingCountries = true;
+  String? _countriesError;
+
+  int? _selectedResidenceCountryId;
+  int? _selectedCityId;
+  String _selectedGender = 'male';
+  final Set<String> _acceptedPolicies = {};
 
   @override
   void initState() {
     super.initState();
     _isRegisterMode = widget.isRegister;
-    _selectedCountry = _countries.first; // Yemen (+967) default
+    _loadCountries();
   }
 
   @override
   void dispose() {
     _phoneController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
-  void _openCountryPickerSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return Container(
-          height: MediaQuery.of(sheetContext).size.height * 0.58,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 44,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: BurhanColors.slate300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                child: Row(
-                  children: [
-                    const Icon(Icons.public_rounded, size: 20, color: BurhanColors.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      'اختر رمز الدولة ورقم الاتصال',
-                      style: BurhanTypography.titleSmall.copyWith(fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1, color: BurhanColors.slate200),
-              Expanded(
-                child: ListView.separated(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: _countries.length,
-                  separatorBuilder: (_, _) => const Divider(
-                    height: 1,
-                    color: BurhanColors.slate100,
-                  ),
-                  itemBuilder: (context, index) {
-                    final item = _countries[index];
-                    final isSelected = item.dialCode == _selectedCountry.dialCode;
+  Future<void> _loadCountries() async {
+    setState(() {
+      _loadingCountries = true;
+      _countriesError = null;
+    });
 
-                    return InkWell(
-                      onTap: () {
-                        setState(() => _selectedCountry = item);
-                        Navigator.pop(sheetContext);
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected ? BurhanColors.slate100 : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Text(item.flag, style: const TextStyle(fontSize: 22)),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                item.nameAr,
-                                style: BurhanTypography.bodyMedium.copyWith(
-                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                  color: isSelected ? BurhanColors.primary : BurhanColors.slate800,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              item.dialCode,
-                              style: const TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: BurhanColors.slate600,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            if (isSelected)
-                              const Icon(
-                                Icons.check_circle_rounded,
-                                color: BurhanColors.primary,
-                                size: 18,
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
+    final result = await sl<GetCountriesUseCase>()(const NoParams());
+    if (!mounted) return;
+
+    result.fold(
+      onSuccess: (list) {
+        CountryEntity? yemen;
+        for (final c in list) {
+          if (c.iso2.toUpperCase() == 'YE' || c.dialCode == '+967') {
+            yemen = c;
+            break;
+          }
+        }
+        final selected = yemen ?? (list.isNotEmpty ? list.first : null);
+        setState(() {
+          _countries = list;
+          _selectedDialCountry = selected;
+          _selectedResidenceCountryId = selected?.id;
+          _loadingCountries = false;
+        });
+      },
+      onFailure: (f) {
+        setState(() {
+          _countries = const [];
+          _selectedDialCountry = null;
+          _loadingCountries = false;
+          _countriesError = f.message;
+        });
       },
     );
+  }
+
+  Future<void> _openDialCountryPicker() async {
+    if (_countries.isEmpty) return;
+    final selected = await showAuthPickerSheet<CountryEntity>(
+      context: context,
+      title: 'اختر رمز الدولة ورقم الاتصال',
+      icon: Icons.public_rounded,
+      items: _countries,
+      selected: _selectedDialCountry,
+      labelOf: (c) => c.nameAr,
+      trailingOf: (c) => c.dialCode,
+      leadingEmojiOf: (c) => authFlagFromIso2(c.iso2),
+      equals: (a, b) => a.id == b.id,
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _selectedDialCountry = selected;
+      // Keep residence country aligned with dial country by default.
+      _selectedResidenceCountryId = selected.id;
+      _selectedCityId = null;
+    });
   }
 
   void _submit() {
     setState(() => _inlineError = null);
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    final dial = _selectedDialCountry;
+    if (dial == null) {
+      setState(() => _inlineError = 'تعذّر تحميل الدول. حاول مرة أخرى.');
+      return;
+    }
+
     final phone = _phoneController.text.trim();
+
+    if (_isRegisterMode) {
+      final extrasError = _registerExtrasKey.currentState?.validate();
+      if (extrasError != null) {
+        setState(() => _inlineError = extrasError);
+        return;
+      }
+      if (_selectedCityId == null) {
+        setState(() => _inlineError = 'يرجى اختيار المدينة');
+        return;
+      }
+
+      context.read<AuthCubit>().sendOtp(
+            countryCode: dial.dialCode,
+            phone: phone,
+            intent: 'register',
+            registration: RegistrationDraft(
+              name: _nameController.text.trim(),
+              cityId: _selectedCityId!,
+              gender: _selectedGender,
+              acceptedPolicies: _acceptedPolicies.toList(),
+            ),
+          );
+      return;
+    }
+
     context.read<AuthCubit>().sendOtp(
-          countryCode: _selectedCountry.dialCode,
+          countryCode: dial.dialCode,
           phone: phone,
+          intent: 'login',
         );
+  }
+
+  Widget _dialCodeShimmer() {
+    return Shimmer.fromColors(
+      baseColor: BurhanColors.slate100,
+      highlightColor: Colors.white,
+      child: Container(
+        height: 50,
+        width: 108,
+        decoration: BoxDecoration(
+          color: BurhanColors.slate100,
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
+    );
   }
 
   @override
@@ -192,7 +188,7 @@ class _LoginPageState extends State<LoginPage> {
             context.push(
               '${AppRoutes.otp}?phone=${Uri.encodeComponent(state.phone)}'
               '&country_code=${Uri.encodeComponent(state.countryCode)}'
-              '&is_register=$_isRegisterMode',
+              '&is_register=${state.isRegister}',
             );
           } else if (state is AuthFailure) {
             setState(() => _inlineError = state.message);
@@ -383,6 +379,8 @@ class _LoginPageState extends State<LoginPage> {
                                           setState(() {
                                             _isRegisterMode = true;
                                             _inlineError = null;
+                                            _selectedResidenceCountryId ??=
+                                                _selectedDialCountry?.id;
                                           });
                                         },
                                       ),
@@ -430,51 +428,56 @@ class _LoginPageState extends State<LoginPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     // Country Code Selector Pill
-                                    InkWell(
-                                      onTap: isLoading ? null : _openCountryPickerSheet,
-                                      borderRadius: BorderRadius.circular(14),
-                                      child: Container(
-                                        height: 50,
-                                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                                        decoration: BoxDecoration(
-                                          color: BurhanColors.slate100,
-                                          borderRadius: BorderRadius.circular(14),
-                                          border: Border.all(color: BurhanColors.slate200),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              _selectedCountry.flag,
-                                              style: const TextStyle(fontSize: 18),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              _selectedCountry.dialCode,
-                                              style: const TextStyle(
-                                                fontFamily: 'monospace',
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 13,
-                                                color: BurhanColors.slate800,
+                                    if (_loadingCountries)
+                                      _dialCodeShimmer()
+                                    else
+                                      InkWell(
+                                        onTap: isLoading ? null : _openDialCountryPicker,
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: Container(
+                                          height: 50,
+                                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                                          decoration: BoxDecoration(
+                                            color: BurhanColors.slate100,
+                                            borderRadius: BorderRadius.circular(14),
+                                            border: Border.all(color: BurhanColors.slate200),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                authFlagFromIso2(
+                                                  _selectedDialCountry?.iso2 ?? '',
+                                                ),
+                                                style: const TextStyle(fontSize: 18),
                                               ),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            const Icon(
-                                              Icons.keyboard_arrow_down_rounded,
-                                              size: 16,
-                                              color: BurhanColors.slate500,
-                                            ),
-                                          ],
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                _selectedDialCountry?.dialCode ?? '--',
+                                                style: const TextStyle(
+                                                  fontFamily: 'monospace',
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 13,
+                                                  color: BurhanColors.slate800,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Icon(
+                                                Icons.keyboard_arrow_down_rounded,
+                                                size: 16,
+                                                color: BurhanColors.slate500,
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                    ),
                                     const SizedBox(width: 8),
 
                                     // Phone Number TextField
                                     Expanded(
                                       child: TextFormField(
                                         controller: _phoneController,
-                                        enabled: !isLoading,
+                                        enabled: !isLoading && !_loadingCountries,
                                         keyboardType: TextInputType.phone,
                                         inputFormatters: [
                                           FilteringTextInputFormatter.digitsOnly,
@@ -488,7 +491,7 @@ class _LoginPageState extends State<LoginPage> {
                                           letterSpacing: 1.2,
                                         ),
                                         decoration: InputDecoration(
-                                          hintText: _selectedCountry.example,
+                                          hintText: '7XXXXXXXX',
                                           hintStyle: const TextStyle(
                                             fontSize: 14,
                                             fontFamily: 'monospace',
@@ -535,14 +538,78 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                               const SizedBox(height: 6),
 
-                              // Carriers Helper Hint
-                              Text(
-                                'يدعم شبكات اليمن: يمن موبايل (77/78) · يو (73) · سبأفون (71) · واي (70)',
-                                style: BurhanTypography.caption.copyWith(
-                                  fontSize: 10,
-                                  color: BurhanColors.slate400,
+                              if (_countriesError != null)
+                                Text(
+                                  _countriesError!,
+                                  style: BurhanTypography.caption.copyWith(
+                                    fontSize: 10,
+                                    color: BurhanColors.rose500,
+                                  ),
+                                )
+                              else
+                                Text(
+                                  _selectedDialCountry?.iso2.toUpperCase() == 'YE'
+                                      ? 'يدعم شبكات اليمن: يمن موبايل (77/78) · يو (73) · سبأفون (71) · واي (70)'
+                                      : 'أدخل رقم الهاتف بدون رمز الدولة',
+                                  style: BurhanTypography.caption.copyWith(
+                                    fontSize: 10,
+                                    color: BurhanColors.slate400,
+                                  ),
                                 ),
-                              ),
+
+                              if (_isRegisterMode) ...[
+                                const SizedBox(height: 16),
+                                if (_loadingCountries)
+                                  Shimmer.fromColors(
+                                    baseColor: BurhanColors.slate100,
+                                    highlightColor: Colors.white,
+                                    child: Column(
+                                      children: List.generate(
+                                        5,
+                                        (_) => Padding(
+                                          padding: const EdgeInsets.only(bottom: 12),
+                                          child: Container(
+                                            height: 50,
+                                            decoration: BoxDecoration(
+                                              color: BurhanColors.slate100,
+                                              borderRadius: BorderRadius.circular(14),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  RegisterExtrasPanel(
+                                    key: _registerExtrasKey,
+                                    countries: _countries,
+                                    enabled: !isLoading,
+                                    nameController: _nameController,
+                                    selectedCountryId: _selectedResidenceCountryId,
+                                    selectedCityId: _selectedCityId,
+                                    selectedGender: _selectedGender,
+                                    acceptedPolicies: _acceptedPolicies,
+                                    onCountryChanged: (country) {
+                                      setState(() {
+                                        _selectedResidenceCountryId = country.id;
+                                        _selectedCityId = null;
+                                      });
+                                    },
+                                    onCityChanged: (id) =>
+                                        setState(() => _selectedCityId = id),
+                                    onGenderChanged: (g) =>
+                                        setState(() => _selectedGender = g),
+                                    onPolicyToggled: (slug) {
+                                      setState(() {
+                                        if (_acceptedPolicies.contains(slug)) {
+                                          _acceptedPolicies.remove(slug);
+                                        } else {
+                                          _acceptedPolicies.add(slug);
+                                        }
+                                      });
+                                    },
+                                  ),
+                              ],
 
                               // Inline Error Message
                               if (_inlineError != null) ...[
@@ -586,7 +653,7 @@ class _LoginPageState extends State<LoginPage> {
                               SizedBox(
                                 height: 50,
                                 child: ElevatedButton(
-                                  onPressed: isLoading ? null : _submit,
+                                  onPressed: (isLoading || _loadingCountries) ? null : _submit,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: BurhanColors.primary,
                                     foregroundColor: Colors.white,

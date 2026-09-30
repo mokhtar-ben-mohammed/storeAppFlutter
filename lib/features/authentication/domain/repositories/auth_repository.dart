@@ -1,27 +1,36 @@
 import 'package:store/core/utils/result.dart';
 import 'package:store/features/authentication/domain/entities/auth_session_entity.dart';
+import 'package:store/features/authentication/domain/entities/registration_draft.dart';
+import 'package:store/features/authentication/domain/entities/user_entity.dart';
 
-/// Contract for authentication operations and session state.
 abstract interface class AuthRepository {
-  /// Request a 6-digit OTP for [phone] under [countryCode].
   Future<Result<bool>> sendOtp({
     required String countryCode,
     required String phone,
+    required String intent,
   });
 
-  /// Verify the 6-digit [otp] and establish session.
   Future<Result<AuthSessionEntity>> verifyOtp({
     required String countryCode,
     required String phone,
     required String otp,
+    RegistrationDraft? registration,
   });
 
-  /// Terminate the active session and clear local credentials.
   Future<Result<void>> logout();
 
-  /// Retrieve active session if present.
   Future<Result<AuthSessionEntity?>> getCurrentSession();
 
-  /// Check whether an authenticated session currently exists.
   Future<Result<bool>> isAuthenticated();
+
+  Future<Result<UserEntity>> getProfile();
+
+  Future<Result<UserEntity>> updateProfile({
+    String? name,
+    int? cityId,
+    int? currencyId,
+    String? gender,
+  });
+
+  Future<Result<void>> deleteAccount();
 }

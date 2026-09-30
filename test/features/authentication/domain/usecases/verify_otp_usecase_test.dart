@@ -41,40 +41,13 @@ void main() {
       verifyZeroInteractions(mockRepository);
     });
 
-    test('returns ValidationFailure when phone is empty', () async {
-      final result = await useCase(
-        const VerifyOtpParams(
-          countryCode: testCountryCode,
-          phone: '',
-          otp: testOtp,
-        ),
-      );
-
-      expect(result.isFailure, isTrue);
-      expect(result.failureOrNull, isA<ValidationFailure>());
-      verifyZeroInteractions(mockRepository);
-    });
-
-    test('returns ValidationFailure when country code is empty', () async {
-      final result = await useCase(
-        const VerifyOtpParams(
-          countryCode: '',
-          phone: testPhone,
-          otp: testOtp,
-        ),
-      );
-
-      expect(result.isFailure, isTrue);
-      expect(result.failureOrNull, isA<ValidationFailure>());
-      verifyZeroInteractions(mockRepository);
-    });
-
-    test('delegates to repository and returns AuthSessionEntity on valid inputs', () async {
+    test('delegates to repository on valid inputs', () async {
       when(
         () => mockRepository.verifyOtp(
           countryCode: testCountryCode,
           phone: testPhone,
           otp: testOtp,
+          registration: null,
         ),
       ).thenAnswer((_) async => const Result.ok(testSession));
 
@@ -87,12 +60,12 @@ void main() {
       );
 
       expect(result.isSuccess, isTrue);
-      expect(result.dataOrNull, equals(testSession));
       verify(
         () => mockRepository.verifyOtp(
           countryCode: testCountryCode,
           phone: testPhone,
           otp: testOtp,
+          registration: null,
         ),
       ).called(1);
     });

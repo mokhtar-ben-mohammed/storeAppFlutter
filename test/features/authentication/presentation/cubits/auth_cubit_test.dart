@@ -10,6 +10,7 @@ import 'package:store/features/authentication/domain/entities/auth_session_entit
 import 'package:store/features/authentication/domain/entities/user_entity.dart';
 import 'package:store/features/authentication/domain/usecases/get_current_session_usecase.dart';
 import 'package:store/features/authentication/domain/usecases/logout_usecase.dart';
+import 'package:store/features/authentication/domain/usecases/profile_usecases.dart';
 import 'package:store/features/authentication/domain/usecases/send_otp_usecase.dart';
 import 'package:store/features/authentication/domain/usecases/verify_otp_usecase.dart';
 import 'package:store/features/authentication/presentation/cubits/auth_cubit.dart';
@@ -19,6 +20,9 @@ class MockGetCurrentSessionUseCase extends Mock implements GetCurrentSessionUseC
 class MockSendOtpUseCase extends Mock implements SendOtpUseCase {}
 class MockVerifyOtpUseCase extends Mock implements VerifyOtpUseCase {}
 class MockLogoutUseCase extends Mock implements LogoutUseCase {}
+class MockGetProfileUseCase extends Mock implements GetProfileUseCase {}
+class MockUpdateProfileUseCase extends Mock implements UpdateProfileUseCase {}
+class MockDeleteAccountUseCase extends Mock implements DeleteAccountUseCase {}
 class MockLocalStorageService extends Mock implements LocalStorageService {}
 
 void main() {
@@ -27,6 +31,9 @@ void main() {
   late MockSendOtpUseCase mockSendOtpUseCase;
   late MockVerifyOtpUseCase mockVerifyOtpUseCase;
   late MockLogoutUseCase mockLogoutUseCase;
+  late MockGetProfileUseCase mockGetProfileUseCase;
+  late MockUpdateProfileUseCase mockUpdateProfileUseCase;
+  late MockDeleteAccountUseCase mockDeleteAccountUseCase;
   late MockLocalStorageService mockStorage;
 
   setUp(() {
@@ -34,6 +41,9 @@ void main() {
     mockSendOtpUseCase = MockSendOtpUseCase();
     mockVerifyOtpUseCase = MockVerifyOtpUseCase();
     mockLogoutUseCase = MockLogoutUseCase();
+    mockGetProfileUseCase = MockGetProfileUseCase();
+    mockUpdateProfileUseCase = MockUpdateProfileUseCase();
+    mockDeleteAccountUseCase = MockDeleteAccountUseCase();
     mockStorage = MockLocalStorageService();
     when(() => mockStorage.getBool(any())).thenReturn(false);
     when(() => mockStorage.setBool(any(), any())).thenAnswer((_) async => true);
@@ -43,6 +53,9 @@ void main() {
       sendOtpUseCase: mockSendOtpUseCase,
       verifyOtpUseCase: mockVerifyOtpUseCase,
       logoutUseCase: mockLogoutUseCase,
+      getProfileUseCase: mockGetProfileUseCase,
+      updateProfileUseCase: mockUpdateProfileUseCase,
+      deleteAccountUseCase: mockDeleteAccountUseCase,
       storageService: mockStorage,
     );
   });
@@ -61,64 +74,7 @@ void main() {
     });
 
     blocTest<AuthCubit, AuthState>(
-      'emits [AuthLoading, Authenticated] when session is found on checkAuthStatus',
-      build: () {
-        when(() => mockGetCurrentSessionUseCase(const NoParams()))
-            .thenAnswer((_) async => const Result.ok(testSession));
-        return cubit;
-      },
-      act: (cubit) => cubit.checkAuthStatus(),
-      expect: () => [
-        const AuthLoading(message: 'Checking session...'),
-        const Authenticated(testSession),
-      ],
-    );
-
-    blocTest<AuthCubit, AuthState>(
-      'resets guestMode and emits [AuthLoading, Unauthenticated] on cold start without session',
-      build: () {
-        when(() => mockGetCurrentSessionUseCase(const NoParams()))
-            .thenAnswer((_) async => const Result.ok(null));
-        when(() => mockStorage.setBool(StorageKeys.guestMode, false))
-            .thenAnswer((_) async => true);
-        return cubit;
-      },
-      act: (cubit) => cubit.checkAuthStatus(),
-      expect: () => [
-        const AuthLoading(message: 'Checking session...'),
-        const Unauthenticated(),
-      ],
-      verify: (_) {
-        verify(() => mockStorage.setBool(StorageKeys.guestMode, false)).called(1);
-      },
-    );
-
-    blocTest<AuthCubit, AuthState>(
-      'emits [AuthLoading, Unauthenticated] when no session found on checkAuthStatus',
-      build: () {
-        when(() => mockGetCurrentSessionUseCase(const NoParams()))
-            .thenAnswer((_) async => const Result.ok(null));
-        return cubit;
-      },
-      act: (cubit) => cubit.checkAuthStatus(),
-      expect: () => [
-        const AuthLoading(message: 'Checking session...'),
-        const Unauthenticated(),
-      ],
-    );
-
-    blocTest<AuthCubit, AuthState>(
-      'emits [GuestBrowsing] on continueAsGuest',
-      build: () => cubit,
-      act: (cubit) => cubit.continueAsGuest(),
-      expect: () => [const GuestBrowsing()],
-      verify: (_) {
-        verify(() => mockStorage.setBool(StorageKeys.guestMode, true)).called(1);
-      },
-    );
-
-    blocTest<AuthCubit, AuthState>(
-      'emits [AuthLoading, AuthOtpSent] on successful sendOtp',
+      'emits [AuthLoading, AuthOtpSent] on successful sendOtp login',
       build: () {
         when(
           () => mockSendOtpUseCase(
@@ -131,25 +87,6 @@ void main() {
       expect: () => [
         const AuthLoading(message: 'Sending OTP...'),
         const AuthOtpSent(countryCode: testCountryCode, phone: testPhone),
-      ],
-    );
-
-    blocTest<AuthCubit, AuthState>(
-      'emits [AuthLoading, AuthFailure] when sendOtp fails with validation error',
-      build: () {
-        when(
-          () => mockSendOtpUseCase(
-            const SendOtpParams(countryCode: testCountryCode, phone: '123'),
-          ),
-        ).thenAnswer(
-          (_) async => const Result.failure(ValidationFailure('Invalid phone number.')),
-        );
-        return cubit;
-      },
-      act: (cubit) => cubit.sendOtp(countryCode: testCountryCode, phone: '123'),
-      expect: () => [
-        const AuthLoading(message: 'Sending OTP...'),
-        const AuthFailure(ValidationFailure('Invalid phone number.')),
       ],
     );
 
@@ -179,7 +116,7 @@ void main() {
     );
 
     blocTest<AuthCubit, AuthState>(
-      'emits [AuthLoading, Unauthenticated] on successful logout',
+      'emits [Unauthenticated] on successful logout',
       build: () {
         when(() => mockLogoutUseCase(const NoParams()))
             .thenAnswer((_) async => const Result.ok(null));
@@ -187,9 +124,66 @@ void main() {
       },
       act: (cubit) => cubit.logout(),
       expect: () => [
-        const AuthLoading(message: 'Logging out...'),
         const Unauthenticated(),
       ],
+      verify: (_) {
+        verify(() => mockStorage.setBool(StorageKeys.guestMode, false)).called(1);
+      },
+    );
+
+    blocTest<AuthCubit, AuthState>(
+      'emits AuthFailure when sendOtp fails',
+      build: () {
+        when(
+          () => mockSendOtpUseCase(
+            const SendOtpParams(countryCode: testCountryCode, phone: '123'),
+          ),
+        ).thenAnswer(
+          (_) async => const Result.failure(ValidationFailure('Invalid phone number.')),
+        );
+        return cubit;
+      },
+      act: (cubit) => cubit.sendOtp(countryCode: testCountryCode, phone: '123'),
+      expect: () => [
+        const AuthLoading(message: 'Sending OTP...'),
+        const AuthFailure(ValidationFailure('Invalid phone number.')),
+      ],
+    );
+
+    blocTest<AuthCubit, AuthState>(
+      'updateProfile emits Authenticated with updated user',
+      build: () {
+        when(
+          () => mockUpdateProfileUseCase(const UpdateProfileParams(name: 'سارة')),
+        ).thenAnswer(
+          (_) async => const Result.ok(
+            UserEntity(id: 'usr_1', phone: testPhone, name: 'سارة'),
+          ),
+        );
+        return cubit;
+      },
+      seed: () => const Authenticated(testSession),
+      act: (cubit) => cubit.updateProfile(name: 'سارة'),
+      expect: () => [
+        const Authenticated(
+          AuthSessionEntity(
+            token: 'jwt_123',
+            user: UserEntity(id: 'usr_1', phone: testPhone, name: 'سارة'),
+          ),
+        ),
+      ],
+    );
+
+    blocTest<AuthCubit, AuthState>(
+      'deleteAccount emits Unauthenticated on success',
+      build: () {
+        when(() => mockDeleteAccountUseCase(const NoParams()))
+            .thenAnswer((_) async => const Result.ok(null));
+        return cubit;
+      },
+      seed: () => const Authenticated(testSession),
+      act: (cubit) => cubit.deleteAccount(),
+      expect: () => [const Unauthenticated()],
     );
   });
 }

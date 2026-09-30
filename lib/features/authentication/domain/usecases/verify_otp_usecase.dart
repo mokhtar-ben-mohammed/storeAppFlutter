@@ -4,6 +4,7 @@ import 'package:store/core/errors/failures.dart';
 import 'package:store/core/utils/result.dart';
 import 'package:store/core/utils/usecase.dart';
 import 'package:store/features/authentication/domain/entities/auth_session_entity.dart';
+import 'package:store/features/authentication/domain/entities/registration_draft.dart';
 import 'package:store/features/authentication/domain/repositories/auth_repository.dart';
 
 class VerifyOtpParams extends Equatable {
@@ -11,14 +12,16 @@ class VerifyOtpParams extends Equatable {
     required this.countryCode,
     required this.phone,
     required this.otp,
+    this.registration,
   });
 
   final String countryCode;
   final String phone;
   final String otp;
+  final RegistrationDraft? registration;
 
   @override
-  List<Object?> get props => [countryCode, phone, otp];
+  List<Object?> get props => [countryCode, phone, otp, registration];
 }
 
 class VerifyOtpUseCase implements UseCase<AuthSessionEntity, VerifyOtpParams> {
@@ -50,6 +53,7 @@ class VerifyOtpUseCase implements UseCase<AuthSessionEntity, VerifyOtpParams> {
       countryCode: cleanCode,
       phone: cleanPhone,
       otp: cleanOtp,
+      registration: params.registration,
     );
   }
 }
