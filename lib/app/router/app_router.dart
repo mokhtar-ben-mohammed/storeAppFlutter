@@ -7,7 +7,6 @@ import 'package:store/features/authentication/presentation/cubits/auth_state.dar
 import 'package:store/features/authentication/presentation/pages/login_page.dart';
 import 'package:store/features/authentication/presentation/pages/otp_page.dart';
 import 'package:store/features/authentication/presentation/pages/splash_page.dart';
-import 'package:store/features/authentication/presentation/pages/welcome_page.dart';
 import 'package:store/app/router/main_scaffold.dart';
 import 'package:store/core/widgets/bottom_nav.dart';
 import 'package:store/features/cart/presentation/pages/cart_page.dart';
@@ -48,7 +47,6 @@ class AppRouter {
       final authState = authCubit.state;
       final location = state.uri.path;
       final isGateRoute = location == AppRoutes.splash ||
-          location == AppRoutes.welcome ||
           location == AppRoutes.login ||
           location == AppRoutes.otp;
 
@@ -62,17 +60,15 @@ class AppRouter {
       final canBrowse = authState is Authenticated || authState is GuestBrowsing;
 
       if (canBrowse) {
-        if (location == AppRoutes.splash ||
-            location == AppRoutes.welcome ||
-            location == AppRoutes.login) {
+        if (location == AppRoutes.splash || location == AppRoutes.login) {
           return AppRoutes.home;
         }
         return null;
       }
 
-      // Unauthenticated / failure → keep on gate routes only
+      // Unauthenticated / failure → keep on gate routes (direct to login)
       if (!isGateRoute) {
-        return AppRoutes.welcome;
+        return AppRoutes.login;
       }
 
       return null;
@@ -86,7 +82,7 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.welcome,
         name: AppRoutes.welcomeName,
-        builder: (context, state) => const WelcomePage(),
+        redirect: (_, _) => AppRoutes.login,
       ),
       GoRoute(
         path: AppRoutes.home,

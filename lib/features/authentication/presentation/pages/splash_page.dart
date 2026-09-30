@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:store/app/router/app_routes.dart';
 import 'package:store/core/theme/burhan_colors.dart';
 import 'package:store/core/theme/burhan_typography.dart';
+import 'package:store/core/widgets/burhan_logo.dart';
 import 'package:store/features/authentication/presentation/cubits/auth_cubit.dart';
 import 'package:store/features/authentication/presentation/cubits/auth_state.dart';
 
@@ -48,7 +49,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
     if (state is Authenticated || state is GuestBrowsing) {
       context.go(AppRoutes.home);
     } else {
-      context.go(AppRoutes.welcome);
+      context.go(AppRoutes.login);
     }
   }
 
@@ -88,47 +89,37 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      const BurhanLogo(
+                        size: BurhanLogoSize.xl,
+                        variant: BurhanLogoVariant.full,
+                        isLight: true,
+                      ),
+                      const SizedBox(height: 12),
                       Container(
-                        width: 88,
-                        height: 88,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.12),
+                          color: Colors.white.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: BurhanColors.amber.withValues(alpha: 0.55),
-                            width: 1.5,
+                            color: Colors.white.withValues(alpha: 0.2),
                           ),
                         ),
-                        child: const Icon(
-                          Icons.storefront_rounded,
-                          color: BurhanColors.amber,
-                          size: 42,
-                        ),
-                      ),
-                      const SizedBox(height: 22),
-                      Text(
-                        'برهان',
-                        style: BurhanTypography.headline.copyWith(
-                          fontSize: 40,
-                          color: Colors.white,
-                          letterSpacing: -1,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'تسوّق من الصين بثقة',
-                        style: BurhanTypography.bodyMedium.copyWith(
-                          color: Colors.white.withValues(alpha: 0.78),
-                          fontSize: 14,
+                        child: Text(
+                          'بوابتك المباشرة للشراء من الصين إلى اليمن 🇾🇪',
+                          style: BurhanTypography.caption.copyWith(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 36),
-                      SizedBox(
-                        width: 28,
-                        height: 28,
+                      const SizedBox(
+                        width: 26,
+                        height: 26,
                         child: CircularProgressIndicator(
-                          strokeWidth: 2.4,
-                          color: BurhanColors.amber.withValues(alpha: 0.9),
+                          strokeWidth: 2.2,
+                          color: BurhanColors.amber,
                         ),
                       ),
                     ],
