@@ -43,9 +43,9 @@ class CommerceRemoteDataSourceImpl implements CommerceRemoteDataSource {
       data: {
         'product_id': productId,
         'title': title,
-        if (channelSlug != null) 'channel_slug': channelSlug,
-        if (imageUrl != null) 'image_url': imageUrl,
-        if (priceCny != null) 'price_cny': priceCny,
+        'channel_slug': ?channelSlug,
+        'image_url': ?imageUrl,
+        'price_cny': ?priceCny,
       },
     );
     ApiResponseParser.requireSuccessData(response);
@@ -77,10 +77,10 @@ class CommerceRemoteDataSourceImpl implements CommerceRemoteDataSource {
         'sku_id': skuId,
         'title': title,
         'quantity': quantity,
-        if (skuLabel != null) 'sku_label': skuLabel,
-        if (channelSlug != null) 'channel_slug': channelSlug,
-        if (imageUrl != null) 'image_url': imageUrl,
-        if (unitPriceCny != null) 'unit_price_cny': unitPriceCny,
+        'sku_label': ?skuLabel,
+        'channel_slug': ?channelSlug,
+        'image_url': ?imageUrl,
+        'unit_price_cny': ?unitPriceCny,
       },
     );
     return ApiResponseParser.requireDataMap(response);

@@ -13,6 +13,9 @@ import 'package:store/features/cart/presentation/pages/cart_page.dart';
 import 'package:store/features/checkout/presentation/pages/checkout_page.dart';
 import 'package:store/features/favorites/presentation/pages/favorites_page.dart';
 import 'package:store/features/notifications/presentation/pages/notifications_page.dart';
+import 'package:store/features/orders/domain/entities/order_entity.dart';
+import 'package:store/features/orders/presentation/data/mock_orders_data.dart';
+import 'package:store/features/orders/presentation/pages/order_details_page.dart';
 import 'package:store/features/orders/presentation/pages/orders_page.dart';
 import 'package:store/features/products/domain/entities/product_entity.dart';
 import 'package:store/features/products/presentation/pages/product_details_page.dart';
@@ -159,6 +162,15 @@ class AppRouter {
         path: AppRoutes.orders,
         name: AppRoutes.ordersName,
         builder: (context, state) => const OrdersPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.orderDetails,
+        name: AppRoutes.orderDetailsName,
+        builder: (context, state) {
+          final order = state.extra as OrderEntity? ??
+              MockOrdersData.getById(state.uri.queryParameters['id'] ?? 'ord-8921')!;
+          return OrderDetailsPage(order: order);
+        },
       ),
       GoRoute(
         path: AppRoutes.profile,

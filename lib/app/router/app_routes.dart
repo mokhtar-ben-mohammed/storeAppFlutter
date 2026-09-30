@@ -27,6 +27,8 @@ class AppRoutes {
   static const String checkoutName = 'checkout';
   static const String orders = '/orders';
   static const String ordersName = 'orders';
+  static const String orderDetails = '/order-details';
+  static const String orderDetailsName = 'order-details';
   static const String profile = '/profile';
   static const String profileName = 'profile';
   static const String favorites = '/favorites';
