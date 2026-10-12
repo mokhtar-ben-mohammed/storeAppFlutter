@@ -106,7 +106,7 @@ class _AddressListBodyState extends State<_AddressListBody> {
                       )
                     : ListView.separated(
                         itemCount: ready.items.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final address = ready.items[index];
                           final selected = address.id == widget.selectedId;

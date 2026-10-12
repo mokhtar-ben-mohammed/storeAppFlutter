@@ -24,7 +24,7 @@ class AddressRemoteDataSourceImpl implements AddressRemoteDataSource {
     final response = await _apiClient.get<dynamic>(ApiEndpoints.addresses);
     final list = ApiResponseParser.requireDataList(response);
     return list
-        .whereType<Map>()
+        .whereType<Map<dynamic, dynamic>>()
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
   }
