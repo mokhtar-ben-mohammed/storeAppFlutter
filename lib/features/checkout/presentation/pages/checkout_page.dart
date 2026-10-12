@@ -579,32 +579,6 @@ class _CheckoutView extends StatelessWidget {
     );
   }
 
-  Widget _field({
-    required String label,
-    required String initial,
-    required ValueChanged<String> onChanged,
-    String? error,
-    TextInputType keyboard = TextInputType.text,
-    int maxLines = 1,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        initialValue: initial,
-        keyboardType: keyboard,
-        maxLines: maxLines,
-        decoration: InputDecoration(
-          labelText: label,
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          errorText: error,
-        ),
-        onChanged: onChanged,
-      ),
-    );
-  }
-
   Widget _buildReviewStep(CheckoutReady state) {
     final preview = state.preview;
     if (preview == null) {
