@@ -26,6 +26,18 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>GMSApiKey</key>
+	<string>$(GOOGLE_MAPS_API_KEY)</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>نستخدم موقعك لتحديد عنوان التوصيل على الخريطة.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>نستخدم الكاميرا لإرفاق صور وفيديو في محادثات الدعم.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>نستخدم الميكروفون لتسجيل رسائل صوتية للدعم.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>نستخدم معرض الصور لإرفاق صور وفيديو في المحادثات.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>قد نحتاج حفظ مرفقات الدعم على جهازك.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

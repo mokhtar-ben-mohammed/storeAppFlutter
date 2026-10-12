@@ -1,9 +1,11 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:store/app/di/injection_container.dart';
 import 'package:store/app/router/app_routes.dart';
+import 'package:store/app/router/main_scaffold.dart';
 import 'package:store/core/constants/storage_keys.dart';
 import 'package:store/core/localization/app_locales.dart';
 import 'package:store/core/storage/local_storage_service.dart';
@@ -13,12 +15,17 @@ import 'package:store/core/theme/burhan_typography.dart';
 import 'package:store/core/theme/theme_cubit.dart';
 import 'package:store/core/theme/theme_state.dart';
 import 'package:store/core/utils/usecase.dart';
+import 'package:store/core/widgets/bottom_nav.dart';
 import 'package:store/core/widgets/burhan_bottom_sheet.dart';
 import 'package:store/core/widgets/burhan_confirm_sheet.dart';
 import 'package:store/core/widgets/profile_menu_tile.dart';
+import 'package:store/features/addresses/domain/repositories/address_repository.dart';
+import 'package:store/features/addresses/presentation/cubits/addresses_cubit.dart';
+import 'package:store/features/addresses/presentation/sheets/address_list_sheet.dart';
 import 'package:store/features/authentication/domain/entities/user_entity.dart';
 import 'package:store/features/authentication/presentation/cubits/auth_cubit.dart';
 import 'package:store/features/authentication/presentation/cubits/auth_state.dart';
+import 'package:store/features/chat/presentation/cubits/chat_unread_cubit.dart';
 import 'package:store/features/authentication/presentation/widgets/auth_picker_sheet.dart';
 import 'package:store/features/finance/domain/entities/currency_entity.dart';
 import 'package:store/features/finance/domain/usecases/get_currencies_usecase.dart';
@@ -26,6 +33,9 @@ import 'package:store/features/geography/domain/entities/city_entity.dart';
 import 'package:store/features/geography/domain/entities/country_entity.dart';
 import 'package:store/features/geography/domain/usecases/get_cities_usecase.dart';
 import 'package:store/features/geography/domain/usecases/get_countries_usecase.dart';
+import 'package:store/features/platform/domain/entities/content_page_entity.dart';
+import 'package:store/features/platform/domain/repositories/content_page_repository.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Profile & Account screen matching ProfileScreen.tsx in storeAppUI.
 class ProfilePage extends StatefulWidget {
@@ -214,15 +224,23 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(opt['label']!, style: BurhanTypography.titleSmall.copyWith(fontSize: 12)),
-                      Text(opt['desc']!, style: BurhanTypography.caption.copyWith(fontSize: 10)),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          opt['label']!,
+                          style: BurhanTypography.titleSmall.copyWith(fontSize: 12),
+                        ),
+                        Text(
+                          opt['desc']!,
+                          style: BurhanTypography.caption.copyWith(fontSize: 10),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Icon(
                     isSelected
                         ? Icons.check_circle_rounded
@@ -518,6 +536,97 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<void> _openExternal(String url, {String? fallbackLabel}) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      _showToast('الرابط غير صالح');
+      return;
+    }
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      await Clipboard.setData(ClipboardData(text: url));
+      _showToast(fallbackLabel ?? 'تعذّر الفتح — تم نسخ الرابط');
+    }
+  }
+
+  Future<void> _openContentPage(String slug, {String fallbackTitle = 'محتوى المنصة'}) async {
+    setState(() => _busy = true);
+    final result = await sl<ContentPageRepository>().getPage(slug);
+    if (!mounted) return;
+    setState(() => _busy = false);
+
+    if (!result.isSuccess) {
+      _showToast(result.failureOrNull?.message ?? 'تعذّر تحميل الصفحة');
+      return;
+    }
+
+    final page = result.dataOrNull;
+    if (page == null) {
+      _showToast('الصفحة غير متاحة حالياً');
+      return;
+    }
+    _showContentPageSheet(page, fallbackTitle: fallbackTitle);
+  }
+
+  void _showContentPageSheet(
+    ContentPageEntity page, {
+    String fallbackTitle = 'محتوى المنصة',
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.72,
+          minChildSize: 0.45,
+          maxChildSize: 0.95,
+          builder: (_, controller) {
+            final body = (page.bodyAr?.trim().isNotEmpty ?? false)
+                ? page.bodyAr!
+                : 'سيتم تحديث محتوى هذه الصفحة قريباً من لوحة التحكم.';
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              ),
+              child: ListView(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: BurhanColors.slate300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    page.titleAr.isNotEmpty ? page.titleAr : fallbackTitle,
+                    style: BurhanTypography.titleLarge.copyWith(fontSize: 18),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    body,
+                    style: BurhanTypography.bodyMedium.copyWith(
+                      fontSize: 13,
+                      height: 1.6,
+                      color: BurhanColors.slate700,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _openSupportSheet() {
     BurhanBottomSheet.show<void>(
       context: context,
@@ -532,7 +641,10 @@ class _ProfilePageState extends State<ProfilePage> {
             iconBgColor: BurhanColors.emerald50,
             onTap: () {
               Navigator.pop(context);
-              _showToast('سيتم فتح واتساب الدعم قريباً');
+              _openExternal(
+                'https://wa.me/967770000000',
+                fallbackLabel: 'تم نسخ رابط واتساب الدعم',
+              );
             },
           ),
           ProfileMenuTile(
@@ -543,13 +655,29 @@ class _ProfilePageState extends State<ProfilePage> {
             iconBgColor: BurhanColors.blue50,
             onTap: () {
               Navigator.pop(context);
-              _showToast('سيتم فتح تيليجرام قريباً');
+              _openExternal(
+                'https://t.me/burhan_platform',
+                fallbackLabel: 'تم نسخ رابط تيليجرام',
+              );
             },
           ),
         ],
       ),
     );
   }
+
+  Future<void> _openDeliveryAddressSheet(UserEntity user) async {
+    final cubit = AddressesCubit(repository: sl<AddressRepository>());
+    await cubit.load();
+    if (!mounted) return;
+    await showAddressListSheet(
+      context: context,
+      cubit: cubit,
+      selectionMode: false,
+    );
+    await cubit.close();
+  }
+
 
   String _currencyBadge(UserEntity? user) {
     final code = user?.currency?.code;
@@ -605,7 +733,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         icon: Icons.inventory_2_outlined,
                         iconColor: BurhanColors.blue500,
                         iconBgColor: BurhanColors.blue50,
-                        onTap: () => _showToast('سجل الطلبات قريباً'),
+                        onTap: () => MainScaffold.goToTab(context, MainTab.orders),
                       ),
                       ProfileMenuTile(
                         title: 'سلة التسوق والشراء الجزئي',
@@ -613,7 +741,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         icon: Icons.shopping_bag_outlined,
                         iconColor: BurhanColors.amberDark,
                         iconBgColor: BurhanColors.store1688Bg,
-                        onTap: () => _showToast('السلة قريباً'),
+                        onTap: () => MainScaffold.goToTab(context, MainTab.cart),
                       ),
                       ProfileMenuTile(
                         title: 'المنتجات المفضلة',
@@ -621,7 +749,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         icon: Icons.favorite_border_rounded,
                         iconColor: BurhanColors.rose500,
                         iconBgColor: BurhanColors.rose50,
-                        onTap: () => _showToast('المفضلة قريباً'),
+                        onTap: () => context.push(AppRoutes.favorites),
                       ),
                       ProfileMenuTile(
                         title: 'عناوين التوصيل المسجلة',
@@ -629,7 +757,20 @@ class _ProfilePageState extends State<ProfilePage> {
                         icon: Icons.location_on_outlined,
                         iconColor: BurhanColors.emerald600,
                         iconBgColor: BurhanColors.emerald50,
-                        onTap: () => _showToast('العناوين قريباً'),
+                        onTap: () => _requireAuthThen(() {
+                          final auth = context.read<AuthCubit>().state;
+                          if (auth is Authenticated) {
+                            _openDeliveryAddressSheet(auth.session.user);
+                          }
+                        }),
+                      ),
+                      ProfileMenuTile(
+                        title: 'مركز الإشعارات',
+                        subtitle: 'تنبيهات الطلبات والعروض والتنبيهات العامة',
+                        icon: Icons.notifications_active_outlined,
+                        iconColor: BurhanColors.amberDark,
+                        iconBgColor: BurhanColors.store1688Bg,
+                        onTap: () => context.push(AppRoutes.notifications),
                       ),
                     ]),
                     const SizedBox(height: 16),
@@ -698,14 +839,32 @@ class _ProfilePageState extends State<ProfilePage> {
                     _buildSectionHeader('الدعم والضمانات'),
                     const SizedBox(height: 6),
                     _buildCardGroup([
+                      BlocBuilder<ChatUnreadCubit, int>(
+                        builder: (context, unread) {
+                          return ProfileMenuTile(
+                            title: 'المحادثات',
+                            subtitle: 'تحدث مع دعم الملكة حول طلباتك وشحناتك',
+                            icon: Icons.chat_outlined,
+                            iconColor: BurhanColors.primary,
+                            iconBgColor: BurhanColors.slate100,
+                            badgeText: unread > 0 ? '$unread' : null,
+                            badgeColor: BurhanColors.rose500,
+                            badgeTextColor: Colors.white,
+                            onTap: () => _requireAuthThen(
+                              () => context.push(AppRoutes.chats),
+                            ),
+                          );
+                        },
+                      ),
                       ProfileMenuTile(
                         title: 'دليل عمل منصة برهان',
                         subtitle: 'خطوات الشراء، الفحص، والشحن لبابك',
                         icon: Icons.help_outline_rounded,
                         iconColor: BurhanColors.amberDark,
                         iconBgColor: BurhanColors.store1688Bg,
-                        onTap: () => _showToast(
-                          'دليل المنصة: 1. الطلب 2. الفحص بقوانغتشو 3. الشحن لليمن',
+                        onTap: () => _openContentPage(
+                          'about',
+                          fallbackTitle: 'دليل عمل منصة برهان',
                         ),
                       ),
                       ProfileMenuTile(
@@ -722,8 +881,9 @@ class _ProfilePageState extends State<ProfilePage> {
                         icon: Icons.verified_user_outlined,
                         iconColor: BurhanColors.emerald600,
                         iconBgColor: BurhanColors.emerald50,
-                        onTap: () => _showToast(
-                          'ضمان برهان: فحص كامل للمواصفات واسترداد مضمون',
+                        onTap: () => _openContentPage(
+                          'terms',
+                          fallbackTitle: 'الضمانات وسياسة الاسترجاع',
                         ),
                       ),
                     ]),
@@ -862,106 +1022,122 @@ class _ProfilePageState extends State<ProfilePage> {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Stack(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [BurhanColors.primary, BurhanColors.primaryLight],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Center(
-                      child: Text(
-                        initial,
-                        style: const TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w900,
-                          color: BurhanColors.amber,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: -1,
-                    right: -1,
-                    child: Container(
-                      width: 12,
-                      height: 12,
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
                       decoration: BoxDecoration(
-                        color: BurhanColors.emerald500,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        user.displayName,
-                        style: BurhanTypography.titleSmall.copyWith(fontSize: 13),
-                      ),
-                      const SizedBox(width: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: BurhanColors.amber.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: BurhanColors.amber.withValues(alpha: 0.3),
-                            width: 0.8,
-                          ),
+                        gradient: const LinearGradient(
+                          colors: [BurhanColors.primary, BurhanColors.primaryLight],
                         ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
                         child: Text(
-                          'موثق',
-                          style: BurhanTypography.badge.copyWith(
-                            color: BurhanColors.amberDark,
-                            fontSize: 8.5,
+                          initial,
+                          style: const TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w900,
+                            color: BurhanColors.amber,
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    user.displayPhone,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 10.5,
-                      color: BurhanColors.slate500,
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on_outlined,
-                        size: 11,
-                        color: BurhanColors.amber,
+                    Positioned(
+                      bottom: -1,
+                      right: -1,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: BurhanColors.emerald500,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
                       ),
-                      const SizedBox(width: 2),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              user.displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: BurhanTypography.titleSmall.copyWith(fontSize: 13),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: BurhanColors.amber.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: BurhanColors.amber.withValues(alpha: 0.3),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Text(
+                              'موثق',
+                              style: BurhanTypography.badge.copyWith(
+                                color: BurhanColors.amberDark,
+                                fontSize: 8.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
                       Text(
-                        'اليمن - ${user.displayCity}',
-                        style: BurhanTypography.caption.copyWith(fontSize: 10),
+                        user.displayPhone,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 10.5,
+                          color: BurhanColors.slate500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on_outlined,
+                            size: 11,
+                            color: BurhanColors.amber,
+                          ),
+                          const SizedBox(width: 2),
+                          Expanded(
+                            child: Text(
+                              'اليمن - ${user.displayCity}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: BurhanTypography.caption.copyWith(fontSize: 10),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
           InkWell(
             onTap: () => _openEditProfileSheet(user),
             borderRadius: BorderRadius.circular(8),
